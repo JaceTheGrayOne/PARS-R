@@ -6,14 +6,36 @@ param (
     [string]$OutputHtmlPath = "D:\Development\XML_Parser\Resources\Output.html"
 )
 
-# --- 1. Helper Functions ---
+# ----------------------------------------------------------------------
+# Script: xml-parser.ps1
+#   - Produces an HTML report from a TestStand-style XML result file.
+#   - Flattens hierarchical test nodes for a collapsible table layout.
+#   - Keeps dependencies minimal so the report is ready for handoff.
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Section: Helper Functions
+#   - Formatting, limit parsing, and tree flattening helpers.
+#   - Defined first so the main execution flow reads cleanly.
+# ----------------------------------------------------------------------
 function Get-LimitsString ($testResultNode) {
+    # ----------------------------------------------------------------------
+    # Function: Get-LimitsString
+    #   - Extracts limit text from a numeric test result node.
+    #   - Converts comparator codes into HTML-safe symbols.
+    #   - Returns an empty string when no limits are present.
+    # ----------------------------------------------------------------------
     if (-not $testResultNode) { return "" }
 
     $limits = $testResultNode.TestLimits.Limits
     if (-not $limits) { return "" }
 
     function Convert-Comparator($comp) {
+        # ----------------------------------------------------------------------
+        # Function: Convert-Comparator
+        #   - Maps comparator tokens to readable HTML entities.
+        #   - Keeps presentation consistent across the report.
+        # ----------------------------------------------------------------------
         switch ($comp) {
             { $_ -match 'GE' } { return "&ge;" }
             { $_ -match 'GT' } { return "&gt;" }
@@ -26,6 +48,7 @@ function Get-LimitsString ($testResultNode) {
     }
 
     if ($limits.LimitPair) {
+        # Paired limits indicate lower and upper bounds.
         $low = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "GE|GT" }
         $high = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "LE|LT" }
         $segments = @()
@@ -34,28 +57,41 @@ function Get-LimitsString ($testResultNode) {
         return $segments -join " | "
     }
     if ($limits.Expected) {
+        # Expected limit is a single comparator/value pair.
         return "$(Convert-Comparator $limits.Expected.comparator) $($limits.Expected.Datum.value)"
     }
     return ""
 }
 
 function Format-Timestamp ($timestamp) {
+    # ----------------------------------------------------------------------
+    # Function: Format-Timestamp
+    #   - Normalizes timestamps to an uppercase display string.
+    #   - Falls back to the input if parsing fails.
+    # ----------------------------------------------------------------------
     if (-not $timestamp) { return "" }
     try {
         $dt = [datetime]$timestamp
         return $dt.ToString("HH:mm:ss - ddMMMyyyy").ToUpper()
     } catch {
+        # Preserve the raw value when the string cannot be parsed.
         return $timestamp
     }
 }
 
 function Get-TestNode ($node, $level) {
+    # ----------------------------------------------------------------------
+    # Function: Get-TestNode
+    #   - Flattens a hierarchical test tree into row objects.
+    #   - Captures depth to maintain parent-child relationships in HTML.
+    # ----------------------------------------------------------------------
     $results = @()
 
     $name = if ($node.callerName) { $node.callerName } else { $node.name }
     $status = $node.Outcome.value
     $timestamp = $node.endDateTime
 
+    # Only numeric nodes carry value, units, and limits for display.
     $numericResult = $node.TestResult | Where-Object { $_.name -eq 'Numeric' }
 
     $value = ""
@@ -69,6 +105,7 @@ function Get-TestNode ($node, $level) {
         $limits = Get-LimitsString $numericResult
     }
 
+    # Add the current node before descending to children to preserve order.
     $results += [PSCustomObject]@{
         Level     = $level
         Name      = $name
@@ -80,6 +117,7 @@ function Get-TestNode ($node, $level) {
         IsGroup   = ($node.LocalName -eq "TestGroup")
     }
 
+    # Continue flattening through relevant child types.
     $children = $node.ChildNodes | Where-Object {
         $_.LocalName -in @("TestGroup", "Test", "SessionAction")
     }
@@ -92,7 +130,11 @@ function Get-TestNode ($node, $level) {
 }
 
 
-# --- 2. Main Execution ---
+# ----------------------------------------------------------------------
+# Section: Main Execution
+#   - Validates inputs, extracts key metadata, and flattens results.
+#   - Keeps the flow linear so future updates remain straightforward.
+# ----------------------------------------------------------------------
 Write-Host "Reading XML file: $XmlPath" -ForegroundColor Cyan
 
 if (-not (Test-Path -LiteralPath $XmlPath)) {
@@ -129,10 +171,15 @@ $totalTests = ($flatResults | Where-Object { -not $_.IsGroup }).Count
 $passCount = ($flatResults | Where-Object { -not $_.IsGroup -and $_.Status -eq "Passed" }).Count
 $failCount = ($flatResults | Where-Object { -not $_.IsGroup -and $_.Status -eq "Failed" }).Count
 
+# Retain the flattened collection for rendering while preserving order.
 $renderRows = $flatResults
 
 
-# --- 3. Generate HTML ---
+# ----------------------------------------------------------------------
+# Section: Generate HTML
+#   - Builds a self-contained HTML table with collapsible groups.
+#   - Uses row metadata to preserve hierarchy for toggling in JavaScript.
+# ----------------------------------------------------------------------
 Write-Host "Generating HTML..." -ForegroundColor Cyan
 
 $htmlRows = ""
@@ -141,6 +188,7 @@ $rowIdCounter = 0
 $groupStack = New-Object System.Collections.Generic.List[string]
 
 foreach ($item in $renderRows) {
+    # Reset the stack when the loop climbs back up the hierarchy.
     while ($groupStack.Count -gt $item.Level) { $groupStack.RemoveAt($groupStack.Count - 1) }
 
     $parentId = $null
@@ -171,7 +219,8 @@ foreach ($item in $renderRows) {
     $nameStyle = "padding-left: $($indent)px;"
     if ($item.IsGroup) { $nameStyle += " font-weight: bold;" }
 
-    $toggleMarkup = if ($item.IsGroup) { '<span class="caret" aria-hidden="true"></span>' } else { '<span class="dot status-' + $statusKey + '" aria-hidden="true"></span>' }
+    $toggleMarkup = if ($item.IsGroup) { '<span class="caret" aria-hidden="true"></span>' } else { '<span class="dot status-' +
+$statusKey + '" aria-hidden="true"></span>' }
 
     $parentAttr = if ($parentId) { "data-parent=""$parentId""" } else { 'data-root="true"' }
 
@@ -346,6 +395,7 @@ $htmlContent = @"
 
 $outDir = Split-Path -Parent $OutputHtmlPath
 if ($outDir -and -not (Test-Path -LiteralPath $outDir)) {
+    # Ensure the destination folder exists so report writing does not fail.
     New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 }
 [System.IO.File]::WriteAllText($OutputHtmlPath, $htmlContent, [System.Text.Encoding]::UTF8)
