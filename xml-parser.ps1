@@ -15,13 +15,17 @@
 .NOTES
     File Name    : TREX.ps1
     Author       : 1130538 (Brandon Heath)
-    Version      : 0.0.1
+    Version      : 0.0.5
     Creation     : 14NOV2025
-    Last Update  : 07DEC2025
+    Last Update  : 12DEC2025
     Requires     : PowerShell 7.0+, Windows 10+
     Versioning   : Semantic Versioning 2.0.0 (Major.Minor.Patch)
 
-    Change Log:
+.CHANGE LOG
+    v0.0.5 - 
+    v0.0.4 - Adjustment to Regex filtering.
+    v0.0.3 - Minor HTML formatting changes.
+    v0.0.2 - Minor syntatic changes.
     v0.0.1 - Initial build.
 #>
 
@@ -103,7 +107,7 @@ poorly formatted date the result of which is virtually unintelligible at
 a glance.
 ---------------------------------------------------------------------- #>
 function Format-Timestamp ($timestamp) {
-    if (-not $timestamp) { return "" }
+    if (-not $timestamp) { return '' }
     try {
         $dt = [datetime]$timestamp
         return $dt.ToString("HH:mm:ss - ddMMMyyyy").ToUpper()
@@ -140,7 +144,7 @@ function Get-TestNode ($node, $level) {
     $timestamp = $node.endDateTime
 
     # Prioritize retrieving numeric result blocks for display.
-    $numericResult = $node.TestResult | Where-Object { $_.name -eq "Numeric" }
+    $numericResult = $node.TestResult | Where-Object { $_.name -eq 'Numeric' }
 
     # Initialize output fields
     $value = ''
@@ -273,9 +277,11 @@ foreach ($item in $renderRows) {
     }
 
 # Determine CSS classes for row styling based on status or group type.
-    $rowClass = ''
-    if ($item.Status -eq "Failed") { $rowClass = "failed" }
-    elseif ($item.IsGroup) { $rowClass = "group" }
+    $rowClassParts = @()
+    if ($item.IsGroup) { $rowClass += "group" }
+    if ($item.Status -eq "Failed") { $rowClass += "failed" }
+    $rowClass = $rowClassParts -join " "
+    
 
     # Clean the status tag for use as a css class
     $statusKey = ($item.Status -replace "\\s","").ToLower()
@@ -457,7 +463,7 @@ $htmlContent = @"
             vertical-align: middle;
         }
 
-        .group:not(.collapsed) .caret {
+        .group[data-expanded="true"] .caret {
             transform: rotate(45deg);
         }
 
@@ -615,5 +621,4 @@ if ($outDir -and -not (Test-Path -LiteralPath $outDir)) {
     New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 }
 [System.IO.File]::WriteAllText($OutputHtmlPath, $htmlContent, [System.Text.Encoding]::UTF8)
-
 Write-Host "Report generated successfully: $OutputHtmlPath" -ForegroundColor Green
