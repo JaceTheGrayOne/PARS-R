@@ -15,14 +15,15 @@
 .NOTES
     File Name    : TREX.ps1
     Author       : 1130538 (Brandon Heath)
-    Version      : 0.0.5
+    Version      : 0.0.6
     Creation     : 14NOV2025
-    Last Update  : 12DEC2025
+    Last Update  : 19DEC2025
     Requires     : PowerShell 7.0+, Windows 10+
     Versioning   : Semantic Versioning 2.0.0 (Major.Minor.Patch)
 
 .CHANGE LOG
-    v0.0.5 - 
+    v0.0.6 - Adjusted several UI elements for readability
+    v0.0.5 - Fix comparator conversion bug.
     v0.0.4 - Adjustment to Regex filtering.
     v0.0.3 - Minor HTML formatting changes.
     v0.0.2 - Minor syntactic changes.
@@ -345,7 +346,7 @@ foreach ($item in $renderRows) {
     <tr class="$rowClass" data-id="$rowId" data-level="$($item.Level)" $parentAttr>
         <td class="name-cell" style="$nameStyle">$toggleMarkup$($item.Name)</td>
         <td class="status-cell status-$statusKey">$($item.Status)</td>
-        <td>$displayValue</td>
+        <td class="value-cell">$displayValue</td>
         <td>$($item.Limits)</td>
         <td class="meta">$displayTime</td>
     </tr>
@@ -378,12 +379,6 @@ $htmlContent = @"
             background-color: #f9f9f9;
         }
 
-        h1 {
-            color: #2c3e50;
-            border-bottom: 2px solid #ddd;
-            padding-bottom: 10px;
-        }
-
         .summary-box {
             background: #fff;
             padding: 15px;
@@ -408,6 +403,13 @@ $htmlContent = @"
         .summary-value {
             font-size: 1.2em;
             font-weight: bold;
+        }
+
+        .stats-detail {
+            font-size: 0.60em;
+            font-weight: normal;
+            margin-left: 2px;
+            white-space: nowrap;
         }
 
         .pass-badge {
@@ -471,12 +473,11 @@ $htmlContent = @"
 
         .failed {
             background-color: #ffe6e6;
-            color: #a00;
-            font-weight: bold;
         }
 
-        .failed .status-cell {
-            color: #d00;
+        .failed .value-cell {
+            color: #c0392b;
+            font-weight: bold;
         }
 
         .meta {
@@ -495,7 +496,7 @@ $htmlContent = @"
             display: inline-block;
             width: 10px;
             height: 10px;
-            margin-right: 6px;
+            margin-right: 10px;
             border: solid #555;
             border-width: 0 2px 2px 0;
             transform: rotate(-45deg);
@@ -572,8 +573,6 @@ $htmlContent = @"
     </style>
 </head>
 <body>
-    <h1>Test Execution Report</h1>
-
     <div class="summary-box">
         <div class="summary-item">
             <span class="summary-label">Serial Number</span>
@@ -593,7 +592,12 @@ $htmlContent = @"
         </div>
          <div class="summary-item">
             <span class="summary-label">Stats</span>
-            <span class="summary-value">$totalTests Total ($passCount Pass / $failCount Fail)</span>
+            <span class="summary-value">
+                <span class="pass-badge">$passCount Pass</span> / <span class="fail-badge">$failCount Fail</span>
+                <span class="stats-detail">
+                    ($totalTests Total)
+                </span>
+            </span>
         </div>
     </div>
     <table>
