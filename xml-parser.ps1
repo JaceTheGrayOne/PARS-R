@@ -25,7 +25,7 @@
     v0.0.5 - 
     v0.0.4 - Adjustment to Regex filtering.
     v0.0.3 - Minor HTML formatting changes.
-    v0.0.2 - Minor syntatic changes.
+    v0.0.2 - Minor syntactic changes.
     v0.0.1 - Initial build.
 #>
 
@@ -46,7 +46,10 @@ in the main HTML generation.
 ---------------------------------------------------------------------- #>
 function Convert-Comparator {
     param($comp)
-    switch ($comp.ToUpper()) {
+
+    if (-not $comp) { return "" }
+
+    switch ($comp.ToString().ToUpper()) {
     'GE' { "&ge;" }    # Greater or Equal
     'GT' { "&gt;" }    # Greater Than
     'LE' { "&le;" }    # Less or Equal
@@ -82,15 +85,16 @@ function Get-LimitsString ($testResultNode) {
     # Limit Pair Handler
     # Filter limit pairs to identify "High" and "Low" boundaries.
     if ($limits.LimitPair) {
-        $low = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "GE|GT" } | Select-Object
-        $high = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "LE|LT" } | Select-Object
+        $low  = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "GE|GT" } | Select-Object -First 1
+        $high = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "LE|LT" } | Select-Object -First 1
         $segments = @()
 
-        # Apply "Up Arrow" or "Down Arrow" to appropriate limit.
-        if ($low)  { $segments += "&uarr; $(Convert-Comparator $low.comparator) $($low.Datum.value)" }
-        if ($high) { $segments += "&darr; $(Convert-Comparator $high.comparator) $($high.Datum.value)" }
+        # Label boundaries explicitly for readability.
+        if ($low)  { $segments += "Low: $(Convert-Comparator $low.comparator) $($low.Datum.value)" }
+        if ($high) { $segments += "High: $(Convert-Comparator $high.comparator) $($high.Datum.value)" }
         return $segments -join " | "
     }
+
     if ($limits.Expected) {
         return "$(Convert-Comparator $limits.Expected.comparator) $($limits.Expected.Datum.value)"
     }
@@ -118,6 +122,28 @@ function Format-Timestamp ($timestamp) {
 }
 
 <# ----------------------------------------------------------------------
+Function: Format-ResultSetDisplayName
+    - Convert a ResultSet "name" path into a readable display name.
+---------------------------------------------------------------------- #>
+function Format-ResultSetDisplayName ([string]$rawName) {
+    if (-not $rawName) { return "" }
+
+    # Drop anything after '#'
+    $base = ($rawName -split '#', 2)[0]
+
+    # Keep the leaf file name
+    $leaf = [System.IO.Path]::GetFileName($base)
+
+    # Remove ".seq" extension
+    if ($leaf -match '\.seq$') { $leaf = $leaf -replace '\.seq$', '' }
+
+    # Replace underscores with spaces and collapse doubles
+    $leaf = ($leaf -replace '_', ' ') -replace '\s{2,}', ' '
+
+    return $leaf.Trim()
+}
+
+<# ----------------------------------------------------------------------
 Function: Get-TestNode
     - Recursively walks through TestGroup, Test, and SessionAction nodes
       flattening the hierarchical XML into a list of easy to render
@@ -133,18 +159,21 @@ but it ensures no data or context is lost in the process and that all
 data is captured which removes the requirement for a post parsing
 validation or some kind of data hashing mechanism to check for parity.
 ---------------------------------------------------------------------- #>
+
 function Get-TestNode ($node, $level) {
     $results = @()
 
-    # Determine group/test/step identifier name.
-    # Prefer 'callerName' as that is often the most human readable
-    # step indicator otherwise fallback to the internally coded name.
+    # Use 'callerName' for step indicator otherwise fallback to internally coded name.
     $name = if ($node.callerName) { $node.callerName } else { $node.name }
+
+    if ($node.LocalName -eq 'ResultSet' -and $node.name) {
+        $name = Format-ResultSetDisplayName $node.name
+    }
+
     $status = $node.Outcome.value
     $timestamp = $node.endDateTime
-
     # Prioritize retrieving numeric result blocks for display.
-    $numericResult = $node.TestResult | Where-Object { $_.name -eq 'Numeric' }
+    $numericResult = $node.TestResult | Where-Object { $_.name -eq 'Numeric' } | Select-Object -First 1
 
     # Initialize output fields
     $value = ''
@@ -170,7 +199,7 @@ function Get-TestNode ($node, $level) {
         Units     = $units
         Limits    = $limits
         Time      = $timestamp
-        IsGroup   = ($node.LocalName -and $node.LocalName -eq "TestGroup")
+        IsGroup   = ($node.LocalName -in @("TestGroup", "SessionAction"))
     }
     # Identify child nodes to recurse into including TestGroup, Test, and SessionAction types.
     $children = $node.ChildNodes | Where-Object {
@@ -199,16 +228,13 @@ if (-not (Test-Path -LiteralPath $XmlPath)) {
     Write-Error "File not found: $XmlPath"
     exit 1
 }
+
 # Load XML content.
-[xml]$xml = Get-Content -LiteralPath $XmlPath
+[xml]$xml = Get-Content -LiteralPath $XmlPath -Raw
 
 # Extract header information including serial number, part number, and status.
 # Defensively guard against null results from incomplete tests.
 $uut = $xml.TestResultsCollection.TestResults.UUT
-# if (-not $uut) {
-#     Write-Error "Missing UUT node in XML; cannot summarize."
-#     exit 1
-# }
 
 # Extract UUT serial number.
 $serialNumber = $uut.SerialNumber
@@ -245,14 +271,14 @@ Section: HTML Generation
     - Build self-contained collapsible HTML table.
 ---------------------------------------------------------------------- #>
 Write-Host "Generating HTML..." -ForegroundColor Cyan
-$htmlRows = ''
+$htmlRowsSb = New-Object System.Text.StringBuilder
 
 # Stack ID counter to track the ID of the current parent group.
 $rowIdCounter = 0
 $groupStack = New-Object System.Collections.Generic.List[string] # Tracks latest group ID per group depth
 
 foreach ($item in $renderRows) {
-    # Trim the stack when moving back up the tree to preserve heirarchy structure.
+    # Trim the stack when moving back up the tree to preserve hierarchy structure.
     while ($groupStack.Count -gt $item.Level) { $groupStack.RemoveAt($groupStack.Count - 1) }
 
     # Determine parent ID of current row based on tree depth.
@@ -278,8 +304,15 @@ foreach ($item in $renderRows) {
 
 # Determine CSS classes for row styling based on status or group type.
     $rowClassParts = @()
-    if ($item.IsGroup) { $rowClass += "group" }
-    if ($item.Status -eq "Failed") { $rowClass += "failed" }
+    if ($item.IsGroup) {
+        $rowClassParts += "group"
+
+        # Theme groups by name; descendants inherit via JS.
+        if ($item.Name -match '(?i)\bcold\b') { $rowClassParts += "cold" }
+        elseif ($item.Name -match '(?i)\bhot\b') { $rowClassParts += "hot" }
+        elseif ($item.Name -match '(?i)\b(startup|shutdown|ambient|pre[-\s]?ess|post[-\s]?ess)\b') { $rowClassParts += "phase-normal" }
+    }
+    if ($item.Status -eq "Failed") { $rowClassParts += "failed" }
     $rowClass = $rowClassParts -join " "
     
 
@@ -308,7 +341,7 @@ foreach ($item in $renderRows) {
     elseif (-not $item.Value -and $item.Units) { $displayValue = $item.Units }
 
     # Build HTML table rows.
-    $htmlRows += @"
+    [void]$htmlRowsSb.Append(@"
     <tr class="$rowClass" data-id="$rowId" data-level="$($item.Level)" $parentAttr>
         <td class="name-cell" style="$nameStyle">$toggleMarkup$($item.Name)</td>
         <td class="status-cell status-$statusKey">$($item.Status)</td>
@@ -316,7 +349,7 @@ foreach ($item in $renderRows) {
         <td>$($item.Limits)</td>
         <td class="meta">$displayTime</td>
     </tr>
-"@
+"@)
 }
 
 <# ----------------------------------------------------------------------
@@ -408,16 +441,32 @@ $htmlContent = @"
             text-overflow: ellipsis;
         }
 
-        /* Size column to content width. */
-        /* Bind name column to a restricted width and allow wrapping */
-        th:nth-child(1), td:first-child {
-            min-width: 240px;
-            max-width: 45vw;
-        }
-
         .group {
             background-color: #f8f9fa;
             color: #555;
+        }
+
+        /* Hot/Cold theming (Step Name cell only) */
+        tr.group.cold td.name-cell {
+            box-shadow: inset 6px 0 0 rgba(162, 198, 245, 0.75);
+        }
+        tr.cold:not(.group) td.name-cell {
+            box-shadow: inset 6px 0 0 rgba(162, 198, 245, 0.55);
+        }
+
+        tr.group.hot td.name-cell {
+            box-shadow: inset 6px 0 0 rgba(252, 198, 192, 0.75);
+        }
+        tr.hot:not(.group) td.name-cell {
+            box-shadow: inset 6px 0 0 rgba(252, 198, 192, 0.55);
+        }
+
+        /* Normal phase theming (Startup/Pre/Ambient/Post/Shutdown) */
+        tr.group.phase-normal td.name-cell {
+            box-shadow: inset 6px 0 0 rgba(0, 0, 0, 0.18);
+        }
+        tr.phase-normal:not(.group) td.name-cell {
+            box-shadow: inset 6px 0 0 rgba(0, 0, 0, 0.12);
         }
 
         .failed {
@@ -462,11 +511,24 @@ $htmlContent = @"
             background: #bbb;
             vertical-align: middle;
         }
-
-        .group[data-expanded="true"] .caret {
+        .group[data-expanded="true"] .caret,
+        #global-toggle.expanded {
             transform: rotate(45deg);
         }
-
+        
+        #global-toggle {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin-right: 6px;
+            border: solid #333;
+            border-width: 0 2px 2px 0;
+            transform: rotate(-45deg);
+            transition: transform 0.2s ease;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+        
         tr[hidden] {
             display: none;
         }
@@ -534,26 +596,101 @@ $htmlContent = @"
             <span class="summary-value">$totalTests Total ($passCount Pass / $failCount Fail)</span>
         </div>
     </div>
-
     <table>
         <thead>
             <tr>
-                <th>Step Name</th>
+                <th><span id="global-toggle" class="caret" title="Toggle All"></span> Step Name</th>
                 <th>Status</th>
                 <th>Value</th>
                 <th>Limits</th>
                 <th>Timestamp</th>
             </tr>
         </thead>
+
         <tbody>
-            $htmlRows
+            $($htmlRowsSb.ToString())
         </tbody>
+
     </table>
+
     <script>
         (() => {
             const tbody = document.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
             const children = new Map();
+            const globalToggle = document.getElementById('global-toggle');
+
+            // Lock table column widths based on the widest content in each column.
+            // This prevents columns shifting when rows are expanded/collapsed.
+            const lockColumnWidths = () => {
+                const table = tbody.closest('table');
+                const theadRow = table.querySelector('thead tr');
+                const headerCells = Array.from(theadRow.cells);
+
+                // Hide the table while we measure to avoid visual flicker.
+                const prevVis = table.style.visibility;
+                table.style.visibility = 'hidden';
+
+                // Temporarily disable truncation so scrollWidth reflects full content width.
+                const prevLayout = table.style.tableLayout;
+                table.style.tableLayout = 'auto';
+                const touched = [];
+                rows.forEach(r => {
+                    Array.from(r.cells).forEach(c => {
+                        touched.push([c, c.style.whiteSpace, c.style.overflow, c.style.textOverflow]);
+                        c.style.whiteSpace = 'nowrap';
+                        c.style.overflow = 'visible';
+                        c.style.textOverflow = 'clip';
+                    });
+                });
+
+                // Temporarily unhide rows so their content participates in measurement.
+                const prevHidden = rows.map(r => r.hidden);
+                rows.forEach(r => r.hidden = false);
+
+                const colCount = headerCells.length;
+                const max = new Array(colCount).fill(0);
+
+                // Include headers in the measurement.
+                headerCells.forEach((cell, i) => { max[i] = Math.max(max[i], cell.scrollWidth); });
+
+                // Measure all body cells using scrollWidth (required width of content).
+                rows.forEach(r => {
+                    for (let i = 0; i < colCount; i++) {
+                        const cell = r.cells[i];
+                        if (!cell) continue;
+                        max[i] = Math.max(max[i], cell.scrollWidth);
+                    }
+                });
+
+                // Restore original hidden states.
+                rows.forEach((r, i) => r.hidden = prevHidden[i]);
+
+                // Build/replace colgroup with fixed pixel widths (+ a little padding buffer).
+                const pad = 24;
+                const old = table.querySelector('colgroup');
+                if (old) old.remove();
+
+                const colgroup = document.createElement('colgroup');
+                max.forEach(w => {
+                    const col = document.createElement('col');
+                    col.style.width = (w + pad) + 'px';
+                    colgroup.appendChild(col);
+                });
+                table.insertBefore(colgroup, table.firstChild);
+
+                // Restore styles we temporarily changed.
+                touched.forEach(([c, ws, ov, to]) => {
+                    c.style.whiteSpace = ws;
+                    c.style.overflow = ov;
+                    c.style.textOverflow = to;
+                });
+                table.style.tableLayout = prevLayout;
+
+                table.style.visibility = prevVis;
+            };
+
+            lockColumnWidths();
 
             // Build parent -> child map and hide all non-root rows by default.
             // This ensures the table loads in a clean "summary" style view.
@@ -568,6 +705,24 @@ $htmlContent = @"
                 if (row.classList.contains('group')) {
                     row.classList.add('collapsed');
                 }
+            });
+
+            // Propagate hot/cold theme from group rows to all descendants.
+            const applyTheme = (row, themeClass) => {
+                const kids = children.get(row.dataset.id) || [];
+                kids.forEach(kid => {
+                    kid.classList.add(themeClass);
+                    if (kid.classList.contains('group')) {
+                        applyTheme(kid, themeClass);
+                    }
+                });
+            };
+
+            rows.forEach(row => {
+                if (!row.classList.contains('group')) return;
+                if (row.classList.contains('cold')) applyTheme(row, 'cold');
+                else if (row.classList.contains('hot')) applyTheme(row, 'hot');
+                else if (row.classList.contains('phase-normal')) applyTheme(row, 'phase-normal');
             });
 
             // Collapse group row and all subsequent descendents
@@ -598,6 +753,29 @@ $htmlContent = @"
 
             // Start with all groups collapsed (roots visible, their children hidden)
             rows.filter(r => r.classList.contains('group')).forEach(collapse);
+
+            globalToggle.addEventListener('click', () => {
+                const isExp = globalToggle.classList.contains('expanded');
+                if (isExp) {
+                    globalToggle.classList.remove('expanded');
+                    rows.forEach(r => {
+                        if (r.dataset.parent) r.hidden = true;
+                        if (r.classList.contains('group')) {
+                            r.classList.add('collapsed');
+                            r.dataset.expanded = 'false';
+                        }
+                    });
+                } else {
+                    globalToggle.classList.add('expanded');
+                    rows.forEach(r => {
+                        r.hidden = false;
+                        if (r.classList.contains('group')) {
+                            r.classList.remove('collapsed');
+                            r.dataset.expanded = 'true';
+                        }
+                    });
+                }
+            });
 
             // Delegate event listener to the table body.
             // This prevents the inevitable performance impact
