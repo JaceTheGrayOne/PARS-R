@@ -4093,7 +4093,7 @@
 <ts:ModuleTime value='37.7365'/>
 </ts:TSStepProperties>
 </tr:Extension>
-<tr:Outcome value="Passed" />
+<tr:Outcome value="Failed" />
 <tr:SessionAction ID = "300" name = "Set APU Status" startDateTime = "2023-06-02T13:42:21.991"  endDateTime = "2023-06-02T13:42:21.991"  testReferenceID="ID#:oJWgsAWgg0a27L6DBLN+hB">
 <tr:Data>
 <c:Collection>
@@ -4126,7 +4126,7 @@
 <ts:ModuleTime value='3.10581'/>
 </ts:TSStepProperties>
 </tr:Extension>
-<tr:Outcome value="Passed" />
+<tr:Outcome value="Failed" />
 <tr:Test ID = "303" name = "AZ Motor Current ON" startDateTime = "2023-06-02T13:42:45.528"  endDateTime = "2023-06-02T13:42:46.423"  testReferenceID="ID#:tutV0+pZO0KW/X1C+B9k6A">
 <tr:Extension>
 <ts:TSStepProperties>
@@ -4138,10 +4138,10 @@
 <ts:ModuleTime value='0.895223'/>
 </ts:TSStepProperties>
 </tr:Extension>
-<tr:Outcome value = "Passed" />
+<tr:Outcome value = "Failed" />
 <tr:TestResult ID = "tr-e2082a7e-016c-11ee-91f4-0060e0683192" name = "Numeric">
 <tr:TestData>
-<c:Datum value = "2.02" xsi:type="ts:TS_double" nonStandardUnit="A" flags = "0x2400"/>
+<c:Datum value = "3.5" xsi:type="ts:TS_double" nonStandardUnit="A" flags = "0x2400"/>
 </tr:TestData>
 <tr:TestLimits>
 <tr:Limits>
@@ -8046,7 +8046,7 @@
 <ts:ModuleTime value='4762.46'/>
 </ts:TSStepProperties>
 </tr:Extension>
-<tr:Outcome value="Passed" />
+<tr:Outcome value="Failed" />
 <tr:SessionAction ID = "549" name = "Ramp and Soak Countdown" startDateTime = "2023-06-02T14:03:31.023"  endDateTime = "2023-06-02T15:16:32.974"  testReferenceID="ID#:6jpxPMwJmkmi0RLv+3oe+C">
 <tr:Data>
 <c:Collection>
@@ -8080,7 +8080,7 @@
 <ts:ModuleTime value='378.004'/>
 </ts:TSStepProperties>
 </tr:Extension>
-<tr:Outcome value="Passed" />
+<tr:Outcome value="Failed" />
 </tr:Test>
 </tr:TestGroup>
 <tr:TestGroup name="C:\GASNT Production Black Test Software\AMPG\ATPS\TestStandSequenceFiles\BlackSequenceFiles\GASNT_Black_Common_Tests_Sequence.seq#Test - G MTR INTL INTF" ID="556" callerName='TRS - G 7.9.1 : ACU MOTOR LOAD COMMANDED ON' testReferenceID="ID#:61ZbHLyfEUK3bdB3TGfAYC" startDateTime = "2023-06-02T15:28:20.255"  endDateTime = "2023-06-02T15:28:58.974" >
