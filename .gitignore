@@ -1,0 +1,22 @@
+# --- Generated outputs / reports ---
+out/
+
+# --- Logs / temp files ---
+*.log
+*.tmp
+*.bak
+
+# --- OS / editor noise ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# VS Code (keep project-level config if you use it; ignore local state)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# JetBrains / Visual Studio
+.idea/
+.vs/

@@ -31,10 +31,10 @@
 #>
 
 param (
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$XmlPath,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$OutputHtmlPath = "D:\Development\XML_Parser\Resources\Output.html"
 )
 
@@ -51,13 +51,13 @@ function Convert-Comparator {
     if (-not $comp) { return "" }
 
     switch ($comp.ToString().ToUpper()) {
-    'GE' { "&ge;" }    # Greater or Equal
-    'GT' { "&gt;" }    # Greater Than
-    'LE' { "&le;" }    # Less or Equal
-    'LT' { "&lt;" }    # Less Than
-    'EQ' { "=" }       # Equal (I know this should be '==' (compare, not set) but '=' is more human readable)
-    'NE' { "&ne;" }    # Not Equal
-    default { $comp }  # Fallback: unchanged
+        'GE' { "&ge;" }    # Greater or Equal
+        'GT' { "&gt;" }    # Greater Than
+        'LE' { "&le;" }    # Less or Equal
+        'LT' { "&lt;" }    # Less Than
+        'EQ' { "=" }       # Equal (I know this should be '==' (compare, not set) but '=' is more human readable)
+        'NE' { "&ne;" }    # Not Equal
+        default { $comp }  # Fallback: unchanged
     }
 }
 
@@ -86,12 +86,12 @@ function Get-LimitsString ($testResultNode) {
     # Limit Pair Handler
     # Filter limit pairs to identify "High" and "Low" boundaries.
     if ($limits.LimitPair) {
-        $low  = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "GE|GT" } | Select-Object -First 1
+        $low = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "GE|GT" } | Select-Object -First 1
         $high = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "LE|LT" } | Select-Object -First 1
         $segments = @()
 
         # Label boundaries explicitly for readability.
-        if ($low)  { $segments += "Low: $(Convert-Comparator $low.comparator) $($low.Datum.value)" }
+        if ($low) { $segments += "Low: $(Convert-Comparator $low.comparator) $($low.Datum.value)" }
         if ($high) { $segments += "High: $(Convert-Comparator $high.comparator) $($high.Datum.value)" }
         return $segments -join " | "
     }
@@ -100,6 +100,61 @@ function Get-LimitsString ($testResultNode) {
         return "$(Convert-Comparator $limits.Expected.comparator) $($limits.Expected.Datum.value)"
     }
     return ""
+}
+
+<# ----------------------------------------------------------------------
+Function: Get-LimitInfo
+    - Extract raw limit data for parity verification (canonical tokens).
+---------------------------------------------------------------------- #>
+function Get-LimitInfo ($testResultNode) {
+    if (-not $testResultNode) { return $null }
+    $limits = $testResultNode.TestLimits.Limits
+    if (-not $limits) { return $null }
+
+    $info = [Ordered]@{
+        Low          = $null
+        LowComp      = "NONE"
+        High         = $null
+        HighComp     = "NONE"
+        Expected     = $null
+        ExpectedComp = "NONE"
+    }
+
+    # Normalize Comparator Helper
+    # Maps symbols to canonical tokens: GE, GT, LE, LT, EQ, NE, NONE
+    $Normalize = { param($c)
+        if (-not $c) { return "NONE" }
+        switch -Regex ($c.ToString().ToUpper()) {
+            'GE|&GE;|=>' { 'GE' }
+            'GT|&GT;|>' { 'GT' }
+            'LE|&LE;|=>' { 'LE' }
+            'LT|&LT;|<' { 'LT' }
+            'EQ|=|==' { 'EQ' }
+            'NE|&NE;|!=' { 'NE' }
+            default { $c } # Pass through if already token or unknown
+        }
+    }
+
+    if ($limits.LimitPair) {
+        $l = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "GE|GT" } | Select-Object -First 1
+        $h = $limits.LimitPair.Limit | Where-Object { $_.comparator -match "LE|LT" } | Select-Object -First 1
+
+        if ($l) {
+            $info.Low = $l.Datum.value
+            $info.LowComp = & $Normalize $l.comparator
+        }
+        if ($h) {
+            $info.High = $h.Datum.value
+            $info.HighComp = & $Normalize $h.comparator
+        }
+    }
+
+    if ($limits.Expected) {
+        $info.Expected = $limits.Expected.Datum.value
+        $info.ExpectedComp = & $Normalize $limits.Expected.comparator
+    }
+
+    return $info
 }
 
 <# ----------------------------------------------------------------------
@@ -116,10 +171,41 @@ function Format-Timestamp ($timestamp) {
     try {
         $dt = [datetime]$timestamp
         return $dt.ToString("HH:mm:ss - ddMMMyyyy").ToUpper()
-    } catch {
+    }
+    catch {
         # Preserve the raw value if string parsing fails.
         return $timestamp
     }
+}
+
+<# ----------------------------------------------------------------------
+Function: Format-ParityValue
+    - Normalizes symbolic or weirdly formatted value strings.
+    - REQ: "123 PORT" -> "PORT 123"
+---------------------------------------------------------------------- #>
+<# ----------------------------------------------------------------------
+Function: Format-DisplayValue
+    - Formats the VISIBLE text in the HTML cell.
+    - REQ: If Units="PORT" & Value is numeric -> "PORT 123"
+    - Default: "123 Units"
+---------------------------------------------------------------------- #>
+function Format-DisplayValue ($val, $unit) {
+    # Normalize nulls
+    $v = if ($val) { $val.ToString().Trim() } else { "" }
+    $u = if ($unit) { $unit.ToString().Trim() } else { "" }
+
+    if (-not $v -and -not $u) { return "" }
+    
+    # Special Case: Port reordering
+    if ($u -eq "PORT" -and $v -match '^\d+$') {
+        return "PORT $v"
+    }
+    
+    # Default Formatting
+    if ($v -and $u) { return "$v $u" }
+    if ($v) { return $v }
+    if ($u) { return $u }
+    return ""
 }
 
 <# ----------------------------------------------------------------------
@@ -182,13 +268,22 @@ function Get-TestNode ($node, $level) {
     $limits = ''
 
     # Extract value, units, and limit information from any present numeric block.
+    $limitData = $null
+    $kind = "Step" 
+
     if ($numericResult) {
         $value = $numericResult.TestData.Datum.value
         $units = $numericResult.TestData.Datum.nonStandardUnit
+        $kind = "Measurement"
 
         # Fallback to standardized unit if no custom unit is present.
         if (-not $units) { $units = $numericResult.TestData.Datum.unit }
         $limits = Get-LimitsString $numericResult
+        $limitData = Get-LimitInfo $numericResult
+    }
+
+    if ($node.LocalName -in @("TestGroup", "SessionAction")) {
+        $kind = "Group"
     }
 
     # Create normalized custom PowerShell object for the current node.
@@ -199,13 +294,15 @@ function Get-TestNode ($node, $level) {
         Value     = $value
         Units     = $units
         Limits    = $limits
+        LimitData = $limitData
+        Kind      = $kind
         Time      = $timestamp
         IsGroup   = ($node.LocalName -in @("TestGroup", "SessionAction"))
     }
     # Identify child nodes to recurse into including TestGroup, Test, and SessionAction types.
     $children = $node.ChildNodes | Where-Object {
-    $_.NodeType -eq 'Element' -and $_.LocalName -in @("TestGroup", "Test", "SessionAction")
-}
+        $_.NodeType -eq 'Element' -and $_.LocalName -in @("TestGroup", "Test", "SessionAction")
+    }
     # Increase indentation level for each child to preserve structure.
     foreach ($child in $children) {
         $results += Get-TestNode $child ($level + 1)
@@ -278,15 +375,100 @@ $htmlRowsSb = New-Object System.Text.StringBuilder
 $rowIdCounter = 0
 $groupStack = New-Object System.Collections.Generic.List[string] # Tracks latest group ID per group depth
 
+# Parity Tracking
+$pathStack = New-Object System.Collections.Generic.List[string] # Tracks ancestor names
+$ordinalTracker = @{} # Maps "ParentPath|Name|Kind" -> Integer Count
+
 foreach ($item in $renderRows) {
     # Trim the stack when moving back up the tree to preserve hierarchy structure.
-    while ($groupStack.Count -gt $item.Level) { $groupStack.RemoveAt($groupStack.Count - 1) }
+    while ($groupStack.Count -gt $item.Level) { 
+        $groupStack.RemoveAt($groupStack.Count - 1) 
+        # Sync path stack
+        if ($pathStack.Count -gt $groupStack.Count) { $pathStack.RemoveAt($pathStack.Count - 1) }
+    }
+}
+
+for ($i = 0; $i -lt $renderRows.Count; $i++) {
+    $item = $renderRows[$i]
+    
+    # Lookahead: Check if the next item is a child (deeper level).
+    $hasChildren = ($i -lt $renderRows.Count - 1) -and ($renderRows[$i + 1].Level -gt $item.Level)
+
+    # Trim the stack when moving back up the tree to preserve hierarchy structure.
+    while ($groupStack.Count -gt $item.Level) { 
+        $groupStack.RemoveAt($groupStack.Count - 1) 
+        # Sync path stack
+        if ($pathStack.Count -gt $groupStack.Count) { $pathStack.RemoveAt($pathStack.Count - 1) }
+    }
 
     # Determine parent ID of current row based on tree depth.
     $parentId = $null
     if ($item.Level -gt 0 -and $groupStack.Count -ge $item.Level) {
         $parentId = $groupStack[$item.Level - 1]
     }
+    
+    # --- Parity Logic Start ---
+    # 1. Compute Path (Ancestors + Current)
+    # Note: pathStack currently contains only ancestors up to Level-1
+    # Parity Contract: Path delimiter is "/"
+    $parentPath = $pathStack -join '/'
+    $currentPath = if ($parentPath) { "$parentPath/$($item.Name)" } else { $item.Name }
+    
+    # 2. Compute Execution Ordinal
+    # Key: "ParentPath|Name|Kind"
+    $ordKey = "$parentPath|$($item.Name)|$($item.Kind)"
+    if (-not $ordinalTracker.ContainsKey($ordKey)) { $ordinalTracker[$ordKey] = 0 }
+    $ordinalTracker[$ordKey]++
+    $ordinal = $ordinalTracker[$ordKey]
+
+    # 3. Prepare Attribute String
+    # Normalize nulls to empty strings safely
+    # Note: $item properties are mostly strings already, LimitData might be null if not populated
+    $pStatus = if ($item.Status) { $item.Status } else { "" }
+    
+    # Normalize Value for Parity
+    # Normalize Value for Parity
+    # We keep the raw value for parity comparisons to match the XML source (split fields)
+    $pValue = if ($item.Value) { $item.Value } else { "" }
+
+    $pUnit = if ($item.Units) { $item.Units } else { "" }
+    
+    $pLow = ""; $pLowC = "NONE"; $pHigh = ""; $pHighC = "NONE"; $pExp = ""; $pExpC = "NONE"
+    if ($item.LimitData) {
+        if ($item.LimitData.Low) { $pLow = $item.LimitData.Low }
+        if ($item.LimitData.LowComp) { $pLowC = $item.LimitData.LowComp }
+        if ($item.LimitData.High) { $pHigh = $item.LimitData.High }
+        if ($item.LimitData.HighComp) { $pHighC = $item.LimitData.HighComp }
+        if ($item.LimitData.Expected) { $pExp = $item.LimitData.Expected }
+        if ($item.LimitData.ExpectedComp) { $pExpC = $item.LimitData.ExpectedComp }
+    }
+
+    # Helper/Closure to escape attribute values
+    # Since HttpUtility might not be loaded, using Replace
+    $EscSimple = { param($s) 
+        if (-not $s) { return "" }
+        return $s.ToString().Replace('&', '&amp;').Replace('"', '&quot;').Replace('<', '&lt;').Replace('>', '&gt;')
+    }
+
+    # Prep formatted Timestamp values.
+    $displayTime = Format-Timestamp $item.Time
+    $pTime = if ($displayTime) { $displayTime } else { "" }
+
+    $parityAttrs = "data-parity-path=""$(& $EscSimple $currentPath)"" " +
+    "data-parity-name=""$(& $EscSimple $item.Name)"" " +
+    "data-parity-ordinal=""$ordinal"" " +
+    "data-parity-kind=""$($item.Kind)"" " +
+    "data-parity-status=""$(& $EscSimple $pStatus)"" " +
+    "data-parity-value=""$(& $EscSimple $pValue)"" " +
+    "data-parity-units=""$(& $EscSimple $pUnit)"" " +
+    "data-parity-low=""$(& $EscSimple $pLow)"" " +
+    "data-parity-lowcomp=""$pLowC"" " +
+    "data-parity-high=""$(& $EscSimple $pHigh)"" " +
+    "data-parity-highcomp=""$pHighC"" " +
+    "data-parity-expected=""$(& $EscSimple $pExp)"" " +
+    "data-parity-expectedcomp=""$pExpC"" " +
+    "data-parity-timestamp=""$(& $EscSimple $pTime)"""
+    # --- Parity Logic End ---
 
     $rowIdCounter++
     $rowId = "row$rowIdCounter"
@@ -294,16 +476,28 @@ foreach ($item in $renderRows) {
     # If the current item is a group push its ID to the stack to track
     # subsequent children as part of this group.
     if ($item.IsGroup) {
-        if ($groupStack.Count -eq $item.Level) { $groupStack.Add($rowId) }
-        elseif ($groupStack.Count -gt $item.Level) { $groupStack[$item.Level] = $rowId }
+        if ($groupStack.Count -eq $item.Level) { 
+            $groupStack.Add($rowId) 
+            $pathStack.Add($item.Name)
+        }
+        elseif ($groupStack.Count -gt $item.Level) { 
+            $groupStack[$item.Level] = $rowId 
+            # Sync path: We are replacing at Level. 
+            while ($pathStack.Count -gt $item.Level) { $pathStack.RemoveAt($pathStack.Count - 1) }
+            $pathStack.Add($item.Name)
+        }
         else {
             # Fill empty gaps on the off chance a level gets skipped.
-            while ($groupStack.Count -lt $item.Level) { $groupStack.Add($null) }
+            while ($groupStack.Count -lt $item.Level) { 
+                $groupStack.Add($null) 
+                $pathStack.Add("Unknown") 
+            }
             $groupStack.Add($rowId)
+            $pathStack.Add($item.Name)
         }
     }
 
-# Determine CSS classes for row styling based on status or group type.
+    # Determine CSS classes for row styling based on status or group type.
     $rowClassParts = @()
     if ($item.IsGroup) {
         $rowClassParts += "group"
@@ -318,7 +512,7 @@ foreach ($item in $renderRows) {
     
 
     # Clean the status tag for use as a css class
-    $statusKey = ($item.Status -replace "\\s","").ToLower()
+    $statusKey = ($item.Status -replace "\\s", "").ToLower()
     if (-not $statusKey) { $statusKey = "notrun" }
 
     # Calculate the visual indentation at 20px per level of tree depth.
@@ -327,23 +521,32 @@ foreach ($item in $renderRows) {
     if ($item.IsGroup) { $nameStyle += " font-weight: bold;" }
 
     # Icon selection: Caret for groups, colored dot for tests.
-    $toggleMarkup = if ($item.IsGroup) { '<span class="caret" aria-hidden="true"></span>' } else { '<span class="dot status-' + $statusKey + '" aria-hidden="true"></span>' }
+    $toggleMarkup = ""
+    if ($item.IsGroup) { 
+        if ($hasChildren) {
+            $toggleMarkup = '<span class="caret" aria-hidden="true"></span>' 
+        }
+        else {
+            # Hidden caret for empty groups (preserves spacing but removes visual cue)
+            $toggleMarkup = '<span class="caret" aria-hidden="true" style="visibility:hidden; pointer-events:none;"></span>' 
+        }
+    }
+    else { 
+        $toggleMarkup = '<span class="dot status-' + $statusKey + '" aria-hidden="true"></span>' 
+    }
 
     # JS data attributes for expand/collapse logic.
     $parentAttr = if ($parentId) { "data-parent=""$parentId""" } else { 'data-root="true"' }
-
-    # Prep formatted Timestamp values.
-    $displayTime = Format-Timestamp $item.Time
+    $expandableAttr = "data-expandable=""$(if ($hasChildren) { 1 } else { 0 })"""
 
     # Prep formatted value/unit strings.
-    $displayValue = $item.Value
-    # Merge Value and Unit
-    if ($item.Value -and $item.Units) { $displayValue = "$($item.Value) $($item.Units)" }
-    elseif (-not $item.Value -and $item.Units) { $displayValue = $item.Units }
+    # Prep formatted value/unit strings.
+    # Logic moved to Format-DisplayValue to handle Port reordering in UI only
+    $displayValue = Format-DisplayValue $item.Value $item.Units
 
     # Build HTML table rows.
     [void]$htmlRowsSb.Append(@"
-    <tr class="$rowClass" data-id="$rowId" data-level="$($item.Level)" $parentAttr>
+    <tr class="$rowClass" data-id="$rowId" data-level="$($item.Level)" $parentAttr $expandableAttr $parityAttrs>
         <td class="name-cell" style="$nameStyle">$toggleMarkup$($item.Name)</td>
         <td class="status-cell status-$statusKey">$($item.Status)</td>
         <td class="value-cell">$displayValue</td>
@@ -773,7 +976,7 @@ $htmlContent = @"
                     globalToggle.classList.add('expanded');
                     rows.forEach(r => {
                         r.hidden = false;
-                        if (r.classList.contains('group')) {
+                        if (r.classList.contains('group') && r.dataset.expandable !== "0") {
                             r.classList.remove('collapsed');
                             r.dataset.expanded = 'true';
                         }
@@ -789,6 +992,10 @@ $htmlContent = @"
                 if (!nameCell) { return; }
                 const row = nameCell.parentElement;
                 if (!row.classList.contains('group')) { return; }
+                
+                // Allow interactions only if row is expandable
+                if (row.dataset.expandable === "0") { return; }
+
                 const isCollapsed = row.classList.contains('collapsed');
                 if (isCollapsed) { expand(row); } else { collapse(row); }
             });
