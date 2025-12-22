@@ -15,14 +15,15 @@
 .NOTES
     File Name    : TREX.ps1
     Author       : 1130538 (Brandon Heath)
-    Version      : 0.0.6
+    Version      : 2.0.4
     Creation     : 14NOV2025
     Last Update  : 19DEC2025
     Requires     : PowerShell 7.0+, Windows 10+
     Versioning   : Semantic Versioning 2.0.0 (Major.Minor.Patch)
 
 .CHANGE LOG
-    v0.0.6 - Adjusted several UI elements for readability
+    v2.0.4 - Redesigned UI with new color scheme and improved readability.
+    v0.0.6 - Adjusted several UI elements for readability.
     v0.0.5 - Fix comparator conversion bug.
     v0.0.4 - Adjustment to Regex filtering.
     v0.0.3 - Minor HTML formatting changes.
@@ -104,7 +105,7 @@ function Get-LimitsString ($testResultNode) {
 
 <# ----------------------------------------------------------------------
 Function: Get-LimitInfo
-    - Extract raw limit data for parity verification (canonical tokens).
+    - Extract raw limit data for parity verification.
 ---------------------------------------------------------------------- #>
 function Get-LimitInfo ($testResultNode) {
     if (-not $testResultNode) { return $null }
@@ -120,8 +121,7 @@ function Get-LimitInfo ($testResultNode) {
         ExpectedComp = "NONE"
     }
 
-    # Normalize Comparator Helper
-    # Maps symbols to canonical tokens: GE, GT, LE, LT, EQ, NE, NONE
+    # Normalize Comparators
     $Normalize = { param($c)
         if (-not $c) { return "NONE" }
         switch -Regex ($c.ToString().ToUpper()) {
@@ -131,7 +131,7 @@ function Get-LimitInfo ($testResultNode) {
             'LT|&LT;|<' { 'LT' }
             'EQ|=|==' { 'EQ' }
             'NE|&NE;|!=' { 'NE' }
-            default { $c } # Pass through if already token or unknown
+            default { $c }
         }
     }
 
@@ -173,21 +173,14 @@ function Format-Timestamp ($timestamp) {
         return $dt.ToString("HH:mm:ss - ddMMMyyyy").ToUpper()
     }
     catch {
-        # Preserve the raw value if string parsing fails.
-        return $timestamp
+        return $timestamp   # Preserve the raw value if string parsing fails.
     }
 }
 
 <# ----------------------------------------------------------------------
-Function: Format-ParityValue
-    - Normalizes symbolic or weirdly formatted value strings.
-    - REQ: "123 PORT" -> "PORT 123"
----------------------------------------------------------------------- #>
-<# ----------------------------------------------------------------------
 Function: Format-DisplayValue
-    - Formats the VISIBLE text in the HTML cell.
-    - REQ: If Units="PORT" & Value is numeric -> "PORT 123"
-    - Default: "123 Units"
+    - Normalize certain tokens in the visible HTML.
+    - "## PORT" -> "PORT ##"
 ---------------------------------------------------------------------- #>
 function Format-DisplayValue ($val, $unit) {
     # Normalize nulls
@@ -196,12 +189,12 @@ function Format-DisplayValue ($val, $unit) {
 
     if (-not $v -and -not $u) { return "" }
     
-    # Special Case: Port reordering
+    # Port token re-order
     if ($u -eq "PORT" -and $v -match '^\d+$') {
         return "PORT $v"
     }
     
-    # Default Formatting
+    # Default
     if ($v -and $u) { return "$v $u" }
     if ($v) { return $v }
     if ($u) { return $u }
@@ -218,7 +211,7 @@ function Format-ResultSetDisplayName ([string]$rawName) {
     # Drop anything after '#'
     $base = ($rawName -split '#', 2)[0]
 
-    # Keep the leaf file name
+    # Keep the file name
     $leaf = [System.IO.Path]::GetFileName($base)
 
     # Remove ".seq" extension
@@ -407,30 +400,24 @@ for ($i = 0; $i -lt $renderRows.Count; $i++) {
         $parentId = $groupStack[$item.Level - 1]
     }
     
-    # --- Parity Logic Start ---
+    # --- Parity Verification ---
     # 1. Compute Path (Ancestors + Current)
-    # Note: pathStack currently contains only ancestors up to Level-1
-    # Parity Contract: Path delimiter is "/"
+    #       - Contract: Path delimiter is "/"
     $parentPath = $pathStack -join '/'
     $currentPath = if ($parentPath) { "$parentPath/$($item.Name)" } else { $item.Name }
     
     # 2. Compute Execution Ordinal
-    # Key: "ParentPath|Name|Kind"
+    #       - Key: "ParentPath|Name|Kind"
     $ordKey = "$parentPath|$($item.Name)|$($item.Kind)"
     if (-not $ordinalTracker.ContainsKey($ordKey)) { $ordinalTracker[$ordKey] = 0 }
     $ordinalTracker[$ordKey]++
     $ordinal = $ordinalTracker[$ordKey]
 
-    # 3. Prepare Attribute String
-    # Normalize nulls to empty strings safely
-    # Note: $item properties are mostly strings already, LimitData might be null if not populated
+    # 3. Prep Attribute Strings
     $pStatus = if ($item.Status) { $item.Status } else { "" }
     
-    # Normalize Value for Parity
-    # Normalize Value for Parity
-    # We keep the raw value for parity comparisons to match the XML source (split fields)
+    # Normalize Value for Parity Verification
     $pValue = if ($item.Value) { $item.Value } else { "" }
-
     $pUnit = if ($item.Units) { $item.Units } else { "" }
     
     $pLow = ""; $pLowC = "NONE"; $pHigh = ""; $pHighC = "NONE"; $pExp = ""; $pExpC = "NONE"
@@ -443,14 +430,13 @@ for ($i = 0; $i -lt $renderRows.Count; $i++) {
         if ($item.LimitData.ExpectedComp) { $pExpC = $item.LimitData.ExpectedComp }
     }
 
-    # Helper/Closure to escape attribute values
-    # Since HttpUtility might not be loaded, using Replace
+    # Escape attribute values
     $EscSimple = { param($s) 
         if (-not $s) { return "" }
         return $s.ToString().Replace('&', '&amp;').Replace('"', '&quot;').Replace('<', '&lt;').Replace('>', '&gt;')
     }
 
-    # Prep formatted Timestamp values.
+    # Prep Formatted Timestamp values.
     $displayTime = Format-Timestamp $item.Time
     $pTime = if ($displayTime) { $displayTime } else { "" }
 
@@ -468,7 +454,7 @@ for ($i = 0; $i -lt $renderRows.Count; $i++) {
     "data-parity-expected=""$(& $EscSimple $pExp)"" " +
     "data-parity-expectedcomp=""$pExpC"" " +
     "data-parity-timestamp=""$(& $EscSimple $pTime)"""
-    # --- Parity Logic End ---
+    # --- Parity Verification End ---
 
     $rowIdCounter++
     $rowId = "row$rowIdCounter"
@@ -482,7 +468,6 @@ for ($i = 0; $i -lt $renderRows.Count; $i++) {
         }
         elseif ($groupStack.Count -gt $item.Level) { 
             $groupStack[$item.Level] = $rowId 
-            # Sync path: We are replacing at Level. 
             while ($pathStack.Count -gt $item.Level) { $pathStack.RemoveAt($pathStack.Count - 1) }
             $pathStack.Add($item.Name)
         }
@@ -510,7 +495,7 @@ for ($i = 0; $i -lt $renderRows.Count; $i++) {
     
     # Add level styling hook
     $rowClassParts += "level-$($item.Level)"
-    
+
     if ($item.Status -eq "Failed") { $rowClassParts += "failed" }
     $rowClass = $rowClassParts -join " "
     
@@ -524,14 +509,14 @@ for ($i = 0; $i -lt $renderRows.Count; $i++) {
     $nameStyle = "padding-left: $($indent)px;"
     if ($item.IsGroup) { $nameStyle += " font-weight: bold;" }
 
-    # Icon selection: Caret for groups, colored dot for tests.
+    # Icons: Caret for groups, colored dot for tests.
     $toggleMarkup = ""
     if ($item.IsGroup) { 
         if ($hasChildren) {
             $toggleMarkup = '<span class="caret" aria-hidden="true"></span>' 
         }
         else {
-            # Hidden caret for empty groups (preserves spacing but removes visual cue)
+            # Hide Caret if group has no children.
             $toggleMarkup = '<span class="caret" aria-hidden="true" style="visibility:hidden; pointer-events:none;"></span>' 
         }
     }
@@ -544,16 +529,15 @@ for ($i = 0; $i -lt $renderRows.Count; $i++) {
     $expandableAttr = "data-expandable=""$(if ($hasChildren) { 1 } else { 0 })"""
 
     # Prep formatted value/unit strings.
-    # Logic moved to Format-DisplayValue to handle Port reordering in UI only
     $displayValue = Format-DisplayValue $item.Value $item.Units
     
-    # Status Badge Logic
+    # Status Badge
     $badgeClass = "test-status-badge"
     if ($statusKey -eq 'passed') { $badgeClass += " passed" }
     elseif ($statusKey -eq 'failed') { $badgeClass += " failed" }
     else { $badgeClass += " notrun" }
     
-    # Conditional badge rendering: only show if Status is present
+    # Only show badge \if Status is present
     $statusContent = if ($item.Status) { "<span class=""$badgeClass"">$($item.Status)</span>" } else { "" }
 
     # Build HTML table rows.
@@ -588,16 +572,9 @@ $htmlContent = @"
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test Report - $serialNumber</title>
-    <style>
+<style>
         :root {
-            /* ============================================================
-               PARS-R Theme Tokens (clean + consistent)
-               - Base palette (from your spec)
-               - Semantic tokens (what the color is used for)
-               - Row role tokens (group/subgroup/leaf)
-               ============================================================ */
-
-            /* Base palette */
+            /* Base */
             --neutral-950: rgba(10,10,10,1);
             --neutral-900: rgba(23,23,23,1);
             --neutral-800: rgba(38,38,38,1);
@@ -614,7 +591,7 @@ $htmlContent = @"
             --zinc-500: rgba(113,113,122,1);
             --zinc-600: rgba(82,82,91,1);
 
-            /* Semantic surfaces */
+            /* Page */
             --bg-page: var(--neutral-950);
             --bg-card: var(--neutral-900);
             --bg-table: var(--neutral-900);
@@ -623,33 +600,30 @@ $htmlContent = @"
 
             --border-strong: var(--neutral-800);
             --border: var(--neutral-700);
-            --border-muted: rgba(63,63,70,0.55); /* zinc-700/55-ish */
+            --border-muted: rgba(63,63,70,0.55); /* ~zinc-700/55-ish */
 
-            /* Semantic text */
+            /* Text */
             --text-strong: var(--neutral-100);
             --text: var(--neutral-200);
             --text-subtle: var(--neutral-300);
             --text-muted: var(--neutral-500);
             --text-faint: var(--zinc-500);
 
-            /* Semantic columns */
-            --col-muted: var(--zinc-400); /* Value/Limits */
+            /* Columns */
+            --col-muted: var(--zinc-400);
             --caret: var(--zinc-400);
             --caret-hover: var(--zinc-200);
 
-            /* Row backgrounds (ROLE-BASED: group/subgroup/leaf) */
-            /* Group header (top-level group row) */
-            --row-bg-group-top: rgba(38,38,38,0.70);     /* darker */
-            /* Container group rows (nested groups) */
-            --row-bg-group: rgba(63,63,70,0.36);         /* mid */
-            /* Leaf rows (tests/steps/measurements) */
-            --row-bg-leaf: rgba(63,63,70,0.18);          /* lightest */
-            --row-bg-leaf-alt: rgba(63,63,70,0.23);      /* slight zebra for readability */
+            /* Row Backgrounds */
+            --row-bg-group-top: rgba(38,38,38,0.70);  /* Group Header */
+            --row-bg-group: rgba(63,63,70,0.36);    /* Nested Groups */
+            --row-bg-leaf: rgba(63,63,70,0.18);            /* Test Rows */
+            --row-bg-leaf-alt: rgba(63,63,70,0.23);      /* Test Rows 2 */
 
-            /* Hover overlay (keeps base shading visible) */
+            /* Hover */
             --row-hover-overlay: rgba(255,255,255,0.055);
 
-            /* Status badges */
+            /* Status Badges */
             --pass-bg: rgba(16,185,129,0.2);
             --pass-text: rgba(52,211,153,1);
             --pass-border: rgba(16,185,129,0.3);
@@ -662,7 +636,7 @@ $htmlContent = @"
             --badge-neutral-text: var(--text-muted);
             --badge-neutral-border: var(--border);
 
-            /* Thermal/phase left-bar accents */
+            /* Cycle Indicator Accents */
             --accent-cold: rgba(162, 198, 245, 0.40);
             --accent-hot: rgba(252, 198, 192, 0.40);
             --accent-neutral: rgba(255, 255, 255, 0.12);
@@ -740,56 +714,56 @@ $htmlContent = @"
             overflow: hidden;
             text-overflow: ellipsis;
             color: var(--text-subtle);
-            background-color: var(--row-bg-leaf); /* safe default */
+            background-color: var(--row-bg-leaf);
         }
 
         /* ============================================================
-           Row Shading — ROLE-BASED (by .group vs leaf)
+           Row Shading
            ============================================================ */
 
-        /* Leaf rows: always lightest */
+        /* Test Rows */
         tr:not(.group) td {
             background-color: var(--row-bg-leaf);
             color: var(--neutral-300);
             font-weight: 400;
         }
 
-        /* Leaf zebra (helps distinguish repeated peers like NIS Connect / Set ESS Flag) */
+        /* Test Rows 2 */
         tbody tr:not(.group):nth-of-type(even) td {
             background-color: var(--row-bg-leaf-alt);
         }
 
-        /* Container rows: darker than leaf */
+        /* Nested Groups */
         tr.group td {
             background-color: var(--row-bg-group);
             color: var(--neutral-200);
             font-weight: 500;
         }
 
-        /* Top-level container groups: darkest + strongest text */
+        /* Group Header */
         tr.group[data-level="0"] td {
             background-color: var(--row-bg-group-top);
             color: var(--neutral-100);
             font-weight: 600;
         }
 
-        /* Hover overlay preserves base shading */
+        /* Hover */
         tr:hover td {
             box-shadow: inset 0 0 0 9999px var(--row-hover-overlay);
             transition: box-shadow 0.1s ease;
         }
 
-        /* Thermal/phase left-bar shadows (use tokens) */
+        /* Cycle Indicator Accents */
         tr.group.cold td.name-cell, tr.cold:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-cold); }
         tr.group.hot td.name-cell, tr.hot:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-hot); }
         tr.group.phase-normal td.name-cell, tr.phase-normal:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-neutral); }
 
-        /* Fail row tint removed */
+        /* Removed */
         .failed { background-color: transparent; }
         .failed .value-cell { color: var(--fail-text); font-weight: 700; }
 
         /* ============================================================
-           Timestamp consistency (ALL rows, ALL inner spans)
+           Timestamps
            ============================================================ */
         td:nth-child(5),
         td:nth-child(5) *,
@@ -801,7 +775,6 @@ $htmlContent = @"
             font-weight: 400 !important;
         }
 
-        /* If `.meta` is used anywhere (header, etc.), keep it consistent */
         .meta, .meta * {
             font-size: 14px !important;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
@@ -865,7 +838,7 @@ $htmlContent = @"
 
         tr[hidden] { display: none; }
 
-        /* Badge Styles */
+        /* Status Badges */
         .test-status-badge {
             display: inline-flex;
             align-items: center;
@@ -879,7 +852,7 @@ $htmlContent = @"
         .test-status-badge.failed { background-color: var(--fail-bg); color: var(--fail-text); border: 1px solid var(--fail-border); }
         .test-status-badge.notrun, .test-status-badge.unknown { background-color: var(--badge-neutral-bg); color: var(--badge-neutral-text); border: 1px solid var(--badge-neutral-border); }
 
-        /* Value/Limits */
+        /* Values/Limits */
         .value-cell, td:nth-child(3), td:nth-child(4) { color: var(--col-muted); }
     </style>
 </head>
