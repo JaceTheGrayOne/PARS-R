@@ -7,14 +7,7 @@
     <title>Test Report - 06022023ESS2</title>
     <style>
         :root {
-            /* ============================================================
-               PARS-R Theme Tokens (clean + consistent)
-               - Base palette (from your spec)
-               - Semantic tokens (what the color is used for)
-               - Row role tokens (group/subgroup/leaf)
-               ============================================================ */
-
-            /* Base palette */
+            /* Color Tokens */
             --neutral-950: rgba(10,10,10,1);
             --neutral-900: rgba(23,23,23,1);
             --neutral-800: rgba(38,38,38,1);
@@ -25,91 +18,50 @@
             --neutral-200: rgba(229,229,229,1);
             --neutral-100: rgba(245,245,245,1);
 
-            --zinc-200: rgba(228,228,231,1);
-            --zinc-300: rgba(212,212,216,1);
-            --zinc-400: rgba(161,161,170,1);
-            --zinc-500: rgba(113,113,122,1);
+            --zinc-800-50: rgba(39,39,42,0.5);
+            --zinc-700-50: rgba(63,63,70,0.5);
             --zinc-600: rgba(82,82,91,1);
+            --zinc-500: rgba(113,113,122,1);
+            --zinc-400: rgba(161,161,170,1);
+            --zinc-200: rgba(228,228,231,1);
 
-            /* Semantic surfaces */
-            --bg-page: var(--neutral-950);
-            --bg-card: var(--neutral-900);
-            --bg-table: var(--neutral-900);
-            --bg-header: var(--neutral-800);
-            --bg-header-grad-end: var(--neutral-900);
-
-            --border-strong: var(--neutral-800);
-            --border: var(--neutral-700);
-            --border-muted: rgba(63,63,70,0.55); /* zinc-700/55-ish */
-
-            /* Semantic text */
-            --text-strong: var(--neutral-100);
-            --text: var(--neutral-200);
-            --text-subtle: var(--neutral-300);
-            --text-muted: var(--neutral-500);
-            --text-faint: var(--zinc-500);
-
-            /* Semantic columns */
-            --col-muted: var(--zinc-400); /* Value/Limits */
-            --caret: var(--zinc-400);
-            --caret-hover: var(--zinc-200);
-
-            /* Row backgrounds (ROLE-BASED: group/subgroup/leaf) */
-            /* Group header (top-level group row) */
-            --row-bg-group-top: rgba(38,38,38,0.70);     /* darker */
-            /* Container group rows (nested groups) */
-            --row-bg-group: rgba(63,63,70,0.36);         /* mid */
-            /* Leaf rows (tests/steps/measurements) */
-            --row-bg-leaf: rgba(63,63,70,0.18);          /* lightest */
-            --row-bg-leaf-alt: rgba(63,63,70,0.23);      /* slight zebra for readability */
-
-            /* Hover overlay (keeps base shading visible) */
-            --row-hover-overlay: rgba(255,255,255,0.055);
-
-            /* Status badges */
             --pass-bg: rgba(16,185,129,0.2);
             --pass-text: rgba(52,211,153,1);
             --pass-border: rgba(16,185,129,0.3);
-
+            
             --fail-bg: rgba(244,63,94,0.2);
             --fail-text: rgba(251,113,133,1);
             --fail-border: rgba(244,63,94,0.3);
-
-            --badge-neutral-bg: rgba(39,39,42,0.5);
-            --badge-neutral-text: var(--text-muted);
-            --badge-neutral-border: var(--border);
-
-            /* Thermal/phase left-bar accents */
-            --accent-cold: rgba(162, 198, 245, 0.40);
-            --accent-hot: rgba(252, 198, 192, 0.40);
-            --accent-neutral: rgba(255, 255, 255, 0.12);
         }
 
         body {
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: var(--text);
+            color: var(--neutral-200);
             margin: 20px;
-            background-color: var(--bg-page);
+            background-color: var(--neutral-950);
         }
 
         .summary-box {
-            background: var(--bg-card);
+            background: var(--neutral-900);
             padding: 15px;
-            border: 1px solid var(--border-strong);
+            border: 1px solid var(--neutral-800);
             margin-bottom: 20px;
             border-radius: 12px;
             display: flex;
             gap: 30px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.35);
-            background-image: linear-gradient(to bottom, var(--bg-header), var(--bg-header-grad-end) 40%);
-            border-bottom: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            background-image: linear-gradient(to bottom, var(--neutral-800), var(--neutral-900) 40%);
+            border-bottom: 1px solid var(--neutral-700);
         }
 
-        .summary-item { display: flex; flex-direction: column; }
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+        }
 
         .summary-label {
             font-size: 12px;
-            color: var(--text-muted);
+            color: var(--neutral-500);
             text-transform: uppercase;
             letter-spacing: 0.05em;
             font-weight: 600;
@@ -118,7 +70,7 @@
         .summary-value {
             font-size: 16px;
             font-weight: 600;
-            color: var(--text);
+            color: var(--neutral-200);
         }
 
         .stats-detail {
@@ -126,103 +78,95 @@
             font-weight: normal;
             margin-left: 8px;
             white-space: nowrap;
-            color: var(--text-muted);
+            color: var(--neutral-500);
         }
 
         table {
             width: 100%;
-            border-collapse: separate;
+            border-collapse: separate; 
             border-spacing: 0;
-            background: var(--bg-table);
-            border: 1px solid var(--border-strong);
+            background: var(--neutral-900);
+            border: 1px solid var(--neutral-800);
             border-radius: 12px;
             table-layout: auto;
             overflow: hidden;
         }
 
         th {
-            background-color: var(--bg-header);
-            color: var(--text);
+            background-color: var(--neutral-800);
+            color: var(--neutral-200);
             text-align: left;
             padding: 12px 10px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--neutral-700);
             font-size: 14px;
             font-weight: 500;
         }
 
         td {
             padding: 8px 10px;
-            border-bottom: 1px solid var(--border-muted);
+            border-bottom: 1px solid var(--zinc-700-50);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: var(--text-subtle);
-            background-color: var(--row-bg-leaf); /* safe default */
-        }
-
-        /* ============================================================
-           Row Shading — ROLE-BASED (by .group vs leaf)
-           ============================================================ */
-
-        /* Leaf rows: always lightest */
-        tr:not(.group) td {
-            background-color: var(--row-bg-leaf);
             color: var(--neutral-300);
-            font-weight: 400;
         }
 
-        /* Leaf zebra (helps distinguish repeated peers like NIS Connect / Set ESS Flag) */
-        tbody tr:not(.group):nth-of-type(even) td {
-            background-color: var(--row-bg-leaf-alt);
-        }
-
-        /* Container rows: darker than leaf */
-        tr.group td {
-            background-color: var(--row-bg-group);
-            color: var(--neutral-200);
-            font-weight: 500;
-        }
-
-        /* Top-level container groups: darkest + strongest text */
-        tr.group[data-level="0"] td {
-            background-color: var(--row-bg-group-top);
+        /* Level Styles - Explicit hierarchy */
+        tr[data-level="0"] td {
+            background-color: var(--zinc-800-50);
             color: var(--neutral-100);
             font-weight: 600;
         }
 
-        /* Hover overlay preserves base shading */
+        tr[data-level="1"] td {
+            background-color: rgba(39,39,42,0.35);
+            color: var(--neutral-200);
+            font-weight: 500;
+        }
+
+        tr[data-level="2"] td {
+            background-color: rgba(39,39,42,0.20);
+            color: var(--neutral-300);
+            font-weight: 400;
+        }
+
+        tr td {
+             /* Default for level 3+ */
+            background-color: rgba(39,39,42,0.10);
+        }
+
+        /* Hover - Use outline/box-shadow instead of bg override to preserve level shading */
         tr:hover td {
-            box-shadow: inset 0 0 0 9999px var(--row-hover-overlay);
+            /* filter: brightness(1.2); */
+            /* Using a subtle white overlay instead of replacing bg */
+            box-shadow: inset 0 0 100px 100px rgba(255,255,255,0.03);
             transition: box-shadow 0.1s ease;
         }
 
-        /* Thermal/phase left-bar shadows (use tokens) */
-        tr.group.cold td.name-cell, tr.cold:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-cold); }
-        tr.group.hot td.name-cell, tr.hot:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-hot); }
-        tr.group.phase-normal td.name-cell, tr.phase-normal:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-neutral); }
-
-        /* Fail row tint removed */
-        .failed { background-color: transparent; }
-        .failed .value-cell { color: var(--fail-text); font-weight: 700; }
-
-        /* ============================================================
-           Timestamp consistency (ALL rows, ALL inner spans)
-           ============================================================ */
-        td:nth-child(5),
-        td:nth-child(5) *,
-        .timestamp-cell,
-        .timestamp-cell * {
-            font-size: 14px !important;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
-            color: var(--text-faint) !important;
-            font-weight: 400 !important;
+        .group {
+            /* Kept for structural targeting if needed */
         }
 
-        /* If .meta is used anywhere (header, etc.), keep it consistent */
-        .meta, .meta * {
+        /* Theme hooks - subdued for dark mode */
+        tr.group.cold td.name-cell, tr.cold:not(.group) td.name-cell { box-shadow: inset 4px 0 0 rgba(162, 198, 245, 0.4); }
+        tr.group.hot td.name-cell, tr.hot:not(.group) td.name-cell { box-shadow: inset 4px 0 0 rgba(252, 198, 192, 0.4); }
+        tr.group.phase-normal td.name-cell, tr.phase-normal:not(.group) td.name-cell { box-shadow: inset 4px 0 0 rgba(255, 255, 255, 0.1); }
+
+        .failed {
+            /* Full row tint removed */
+            background-color: transparent; 
+        }
+
+        .failed .value-cell {
+            color: var(--fail-text);
+            font-weight: bold;
+        }
+
+        /* Enforce timestamp consistency globally - overrides level styles */
+        .meta, td:nth-child(5) {
             font-size: 14px !important;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
-            color: var(--text-faint) !important;
+            color: var(--zinc-500) !important;
             font-weight: 400 !important;
         }
 
@@ -238,13 +182,15 @@
             width: 8px;
             height: 8px;
             margin-right: 10px;
-            border: solid var(--caret);
+            border: solid var(--zinc-400);
             border-width: 0 2px 2px 0;
             transform: rotate(-45deg);
             transition: transform 0.2s ease, border-color 0.2s;
         }
 
-        .name-cell:hover .caret { border-color: var(--caret-hover); }
+        .name-cell:hover .caret {
+            border-color: var(--zinc-200);
+        }
 
         .name-cell .dot {
             display: inline-block;
@@ -255,49 +201,51 @@
             background: var(--neutral-700);
             vertical-align: middle;
         }
-
+        
         .dot.status-passed { background: var(--pass-text); }
         .dot.status-failed { background: var(--fail-text); }
         .dot.status-inprogress, .dot.status-interrupted { background: #d99000; }
         .dot.status-notrun { background: var(--neutral-600); }
-
-        .failed .dot.status-failed { box-shadow: 0 0 4px var(--fail-text); }
+        
+        /* Failure Dot Priority */
+        .failed .dot.status-failed {
+            box-shadow: 0 0 4px var(--fail-text);
+        }
 
         .group[data-expanded="true"] .caret,
-        #global-toggle.expanded { transform: rotate(45deg); }
-
+        #global-toggle.expanded {
+            transform: rotate(45deg);
+        }
+        
         #global-toggle {
             display: inline-block;
             width: 8px;
             height: 8px;
             margin-right: 6px;
-            border: solid var(--caret);
+            border: solid var(--zinc-400);
             border-width: 0 2px 2px 0;
             transform: rotate(-45deg);
-            transition: transform 0.2s ease, border-color 0.2s;
+            transition: transform 0.2s ease;
             cursor: pointer;
             vertical-align: middle;
         }
-        #global-toggle:hover { border-color: var(--caret-hover); }
-
-        tr[hidden] { display: none; }
+        
+        #global-toggle:hover { border-color: var(--zinc-200); }
+        
+        tr[hidden] {
+            display: none;
+        }
 
         /* Badge Styles */
-        .test-status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.625rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            line-height: 1rem;
-        }
-        .test-status-badge.passed { background-color: var(--pass-bg); color: var(--pass-text); border: 1px solid var(--pass-border); }
-        .test-status-badge.failed { background-color: var(--fail-bg); color: var(--fail-text); border: 1px solid var(--fail-border); }
-        .test-status-badge.notrun, .test-status-badge.unknown { background-color: var(--badge-neutral-bg); color: var(--badge-neutral-text); border: 1px solid var(--badge-neutral-border); }
+        .test-status-badge { display:inline-flex; align-items:center; padding:0.25rem 0.625rem; border-radius:9999px; font-size:0.75rem; font-weight:600; line-height:1rem; }
+        .test-status-badge.passed { background-color: var(--pass-bg); color: var(--pass-text); border:1px solid var(--pass-border); }
+        .test-status-badge.failed { background-color: var(--fail-bg); color: var(--fail-text); border:1px solid var(--fail-border); }
+        .test-status-badge.notrun, .test-status-badge.unknown { background-color: var(--zinc-800-50); color: var(--neutral-500); border: 1px solid var(--neutral-700); }
 
         /* Value/Limits */
-        .value-cell, td:nth-child(3), td:nth-child(4) { color: var(--col-muted); }
+        .value-cell, td:nth-child(4) {
+            color: var(--zinc-400);
+        }
     </style>
 </head>
 <body>
@@ -11018,14 +10966,18 @@
             const children = new Map();
             const globalToggle = document.getElementById('global-toggle');
 
+            // Lock table column widths based on the widest content in each column.
+            // This prevents columns shifting when rows are expanded/collapsed.
             const lockColumnWidths = () => {
                 const table = tbody.closest('table');
                 const theadRow = table.querySelector('thead tr');
                 const headerCells = Array.from(theadRow.cells);
 
+                // Hide the table while we measure to avoid visual flicker.
                 const prevVis = table.style.visibility;
                 table.style.visibility = 'hidden';
 
+                // Temporarily disable truncation so scrollWidth reflects full content width.
                 const prevLayout = table.style.tableLayout;
                 table.style.tableLayout = 'auto';
                 const touched = [];
@@ -11038,14 +10990,17 @@
                     });
                 });
 
+                // Temporarily unhide rows so their content participates in measurement.
                 const prevHidden = rows.map(r => r.hidden);
                 rows.forEach(r => r.hidden = false);
 
                 const colCount = headerCells.length;
                 const max = new Array(colCount).fill(0);
 
+                // Include headers in the measurement.
                 headerCells.forEach((cell, i) => { max[i] = Math.max(max[i], cell.scrollWidth); });
 
+                // Measure all body cells using scrollWidth (required width of content).
                 rows.forEach(r => {
                     for (let i = 0; i < colCount; i++) {
                         const cell = r.cells[i];
@@ -11054,8 +11009,10 @@
                     }
                 });
 
+                // Restore original hidden states.
                 rows.forEach((r, i) => r.hidden = prevHidden[i]);
 
+                // Build/replace colgroup with fixed pixel widths (+ a little padding buffer).
                 const pad = 24;
                 const old = table.querySelector('colgroup');
                 if (old) old.remove();
@@ -11068,6 +11025,7 @@
                 });
                 table.insertBefore(colgroup, table.firstChild);
 
+                // Restore styles we temporarily changed.
                 touched.forEach(([c, ws, ov, to]) => {
                     c.style.whiteSpace = ws;
                     c.style.overflow = ov;
@@ -11080,6 +11038,8 @@
 
             lockColumnWidths();
 
+            // Build parent -> child map and hide all non-root rows by default.
+            // This ensures the table loads in a clean "summary" style view.
             rows.forEach(row => {
                 const parent = row.dataset.parent;
                 if (parent) {
@@ -11093,6 +11053,7 @@
                 }
             });
 
+            // Propagate hot/cold theme from group rows to all descendants.
             const applyTheme = (row, themeClass) => {
                 const kids = children.get(row.dataset.id) || [];
                 kids.forEach(kid => {
@@ -11110,6 +11071,7 @@
                 else if (row.classList.contains('phase-normal')) applyTheme(row, 'phase-normal');
             });
 
+            // Collapse group row and all subsequent descendents
             const collapse = (row) => {
                 row.classList.add('collapsed');
                 row.dataset.expanded = 'false';
@@ -11117,11 +11079,12 @@
                 kids.forEach(kid => {
                     kid.hidden = true;
                     if (kid.classList.contains('group')) {
-                        collapse(kid);
+                        collapse(kid); // recursive collapse keeps descendants hidden
                     }
                 });
             };
 
+            // Expand group row but keep children collapsed
             const expand = (row) => {
                 row.classList.remove('collapsed');
                 row.dataset.expanded = 'true';
@@ -11129,11 +11092,12 @@
                 kids.forEach(kid => {
                     kid.hidden = false;
                     if (kid.classList.contains('group')) {
-                        kid.classList.add('collapsed');
+                        kid.classList.add('collapsed'); // show the group row but keep its children collapsed
                     }
                 });
             };
 
+            // Start with all groups collapsed (roots visible, their children hidden)
             rows.filter(r => r.classList.contains('group')).forEach(collapse);
 
             globalToggle.addEventListener('click', () => {
@@ -11159,12 +11123,16 @@
                 }
             });
 
+            // Delegate event listener to the table body.
+            // This prevents the inevitable performance impact
+            // of adding a listener to each row in large reports.
             tbody.addEventListener('click', (event) => {
                 const nameCell = event.target.closest('.name-cell');
                 if (!nameCell) { return; }
                 const row = nameCell.parentElement;
                 if (!row.classList.contains('group')) { return; }
-
+                
+                // Allow interactions only if row is expandable
                 if (row.dataset.expandable === "0") { return; }
 
                 const isCollapsed = row.classList.contains('collapsed');

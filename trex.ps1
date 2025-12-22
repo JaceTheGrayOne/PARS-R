@@ -507,6 +507,10 @@ for ($i = 0; $i -lt $renderRows.Count; $i++) {
         elseif ($item.Name -match '(?i)\bhot\b') { $rowClassParts += "hot" }
         elseif ($item.Name -match '(?i)\b(startup|shutdown|ambient|pre[-\s]?ess|post[-\s]?ess)\b') { $rowClassParts += "phase-normal" }
     }
+    
+    # Add level styling hook
+    $rowClassParts += "level-$($item.Level)"
+    
     if ($item.Status -eq "Failed") { $rowClassParts += "failed" }
     $rowClass = $rowClassParts -join " "
     
@@ -540,15 +544,25 @@ for ($i = 0; $i -lt $renderRows.Count; $i++) {
     $expandableAttr = "data-expandable=""$(if ($hasChildren) { 1 } else { 0 })"""
 
     # Prep formatted value/unit strings.
-    # Prep formatted value/unit strings.
     # Logic moved to Format-DisplayValue to handle Port reordering in UI only
     $displayValue = Format-DisplayValue $item.Value $item.Units
+    
+    # Status Badge Logic
+    $badgeClass = "test-status-badge"
+    if ($statusKey -eq 'passed') { $badgeClass += " passed" }
+    elseif ($statusKey -eq 'failed') { $badgeClass += " failed" }
+    else { $badgeClass += " notrun" }
+    
+    # Conditional badge rendering: only show if Status is present
+    $statusContent = if ($item.Status) { "<span class=""$badgeClass"">$($item.Status)</span>" } else { "" }
 
     # Build HTML table rows.
     [void]$htmlRowsSb.Append(@"
     <tr class="$rowClass" data-id="$rowId" data-level="$($item.Level)" $parentAttr $expandableAttr $parityAttrs>
         <td class="name-cell" style="$nameStyle">$toggleMarkup$($item.Name)</td>
-        <td class="status-cell status-$statusKey">$($item.Status)</td>
+        <td class="status-cell">
+            $statusContent
+        </td>
         <td class="value-cell">$displayValue</td>
         <td>$($item.Limits)</td>
         <td class="meta">$displayTime</td>
@@ -575,117 +589,224 @@ $htmlContent = @"
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test Report - $serialNumber</title>
     <style>
+        :root {
+            /* ============================================================
+               PARS-R Theme Tokens (clean + consistent)
+               - Base palette (from your spec)
+               - Semantic tokens (what the color is used for)
+               - Row role tokens (group/subgroup/leaf)
+               ============================================================ */
+
+            /* Base palette */
+            --neutral-950: rgba(10,10,10,1);
+            --neutral-900: rgba(23,23,23,1);
+            --neutral-800: rgba(38,38,38,1);
+            --neutral-700: rgba(64,64,64,1);
+            --neutral-600: rgba(82,82,82,1);
+            --neutral-500: rgba(115,115,115,1);
+            --neutral-300: rgba(212,212,216,1);
+            --neutral-200: rgba(229,229,229,1);
+            --neutral-100: rgba(245,245,245,1);
+
+            --zinc-200: rgba(228,228,231,1);
+            --zinc-300: rgba(212,212,216,1);
+            --zinc-400: rgba(161,161,170,1);
+            --zinc-500: rgba(113,113,122,1);
+            --zinc-600: rgba(82,82,91,1);
+
+            /* Semantic surfaces */
+            --bg-page: var(--neutral-950);
+            --bg-card: var(--neutral-900);
+            --bg-table: var(--neutral-900);
+            --bg-header: var(--neutral-800);
+            --bg-header-grad-end: var(--neutral-900);
+
+            --border-strong: var(--neutral-800);
+            --border: var(--neutral-700);
+            --border-muted: rgba(63,63,70,0.55); /* zinc-700/55-ish */
+
+            /* Semantic text */
+            --text-strong: var(--neutral-100);
+            --text: var(--neutral-200);
+            --text-subtle: var(--neutral-300);
+            --text-muted: var(--neutral-500);
+            --text-faint: var(--zinc-500);
+
+            /* Semantic columns */
+            --col-muted: var(--zinc-400); /* Value/Limits */
+            --caret: var(--zinc-400);
+            --caret-hover: var(--zinc-200);
+
+            /* Row backgrounds (ROLE-BASED: group/subgroup/leaf) */
+            /* Group header (top-level group row) */
+            --row-bg-group-top: rgba(38,38,38,0.70);     /* darker */
+            /* Container group rows (nested groups) */
+            --row-bg-group: rgba(63,63,70,0.36);         /* mid */
+            /* Leaf rows (tests/steps/measurements) */
+            --row-bg-leaf: rgba(63,63,70,0.18);          /* lightest */
+            --row-bg-leaf-alt: rgba(63,63,70,0.23);      /* slight zebra for readability */
+
+            /* Hover overlay (keeps base shading visible) */
+            --row-hover-overlay: rgba(255,255,255,0.055);
+
+            /* Status badges */
+            --pass-bg: rgba(16,185,129,0.2);
+            --pass-text: rgba(52,211,153,1);
+            --pass-border: rgba(16,185,129,0.3);
+
+            --fail-bg: rgba(244,63,94,0.2);
+            --fail-text: rgba(251,113,133,1);
+            --fail-border: rgba(244,63,94,0.3);
+
+            --badge-neutral-bg: rgba(39,39,42,0.5);
+            --badge-neutral-text: var(--text-muted);
+            --badge-neutral-border: var(--border);
+
+            /* Thermal/phase left-bar accents */
+            --accent-cold: rgba(162, 198, 245, 0.40);
+            --accent-hot: rgba(252, 198, 192, 0.40);
+            --accent-neutral: rgba(255, 255, 255, 0.12);
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #333;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text);
             margin: 20px;
-            background-color: #f9f9f9;
+            background-color: var(--bg-page);
         }
 
         .summary-box {
-            background: #fff;
+            background: var(--bg-card);
             padding: 15px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--border-strong);
             margin-bottom: 20px;
-            border-radius: 4px;
+            border-radius: 12px;
             display: flex;
             gap: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+            background-image: linear-gradient(to bottom, var(--bg-header), var(--bg-header-grad-end) 40%);
+            border-bottom: 1px solid var(--border);
         }
 
-        .summary-item {
-            display: flex;
-            flex-direction: column;
-        }
+        .summary-item { display: flex; flex-direction: column; }
 
         .summary-label {
-            font-size: 0.85em;
-            color: #777;
+            font-size: 12px;
+            color: var(--text-muted);
             text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
         }
 
         .summary-value {
-            font-size: 1.2em;
-            font-weight: bold;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
         }
 
         .stats-detail {
-            font-size: 0.60em;
+            font-size: 0.75rem;
             font-weight: normal;
-            margin-left: 2px;
+            margin-left: 8px;
             white-space: nowrap;
-        }
-
-        .pass-badge {
-            color: #27ae60;
-        }
-        
-        .fail-badge {
-            color: #c0392b;
+            color: var(--text-muted);
         }
 
         table {
             width: 100%;
-            border-collapse: collapse;
-            background: #fff;
-            border: 1px solid #ddd;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--bg-table);
+            border: 1px solid var(--border-strong);
+            border-radius: 12px;
             table-layout: auto;
+            overflow: hidden;
         }
 
         th {
-            background-color: #f1f1f1;
+            background-color: var(--bg-header);
+            color: var(--text);
             text-align: left;
-            padding: 10px;
-            border-bottom: 2px solid #ddd;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            font-weight: 500;
         }
 
         td {
             padding: 8px 10px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border-muted);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            color: var(--text-subtle);
+            background-color: var(--row-bg-leaf); /* safe default */
         }
 
-        .group {
-            background-color: #f8f9fa;
-            color: #555;
+        /* ============================================================
+           Row Shading — ROLE-BASED (by .group vs leaf)
+           ============================================================ */
+
+        /* Leaf rows: always lightest */
+        tr:not(.group) td {
+            background-color: var(--row-bg-leaf);
+            color: var(--neutral-300);
+            font-weight: 400;
         }
 
-        /* Hot/Cold theming (Step Name cell only) */
-        tr.group.cold td.name-cell {
-            box-shadow: inset 6px 0 0 rgba(162, 198, 245, 0.75);
-        }
-        tr.cold:not(.group) td.name-cell {
-            box-shadow: inset 6px 0 0 rgba(162, 198, 245, 0.55);
+        /* Leaf zebra (helps distinguish repeated peers like NIS Connect / Set ESS Flag) */
+        tbody tr:not(.group):nth-of-type(even) td {
+            background-color: var(--row-bg-leaf-alt);
         }
 
-        tr.group.hot td.name-cell {
-            box-shadow: inset 6px 0 0 rgba(252, 198, 192, 0.75);
-        }
-        tr.hot:not(.group) td.name-cell {
-            box-shadow: inset 6px 0 0 rgba(252, 198, 192, 0.55);
-        }
-
-        /* Normal phase theming (Startup/Pre/Ambient/Post/Shutdown) */
-        tr.group.phase-normal td.name-cell {
-            box-shadow: inset 6px 0 0 rgba(0, 0, 0, 0.18);
-        }
-        tr.phase-normal:not(.group) td.name-cell {
-            box-shadow: inset 6px 0 0 rgba(0, 0, 0, 0.12);
+        /* Container rows: darker than leaf */
+        tr.group td {
+            background-color: var(--row-bg-group);
+            color: var(--neutral-200);
+            font-weight: 500;
         }
 
-        .failed {
-            background-color: #ffe6e6;
+        /* Top-level container groups: darkest + strongest text */
+        tr.group[data-level="0"] td {
+            background-color: var(--row-bg-group-top);
+            color: var(--neutral-100);
+            font-weight: 600;
         }
 
-        .failed .value-cell {
-            color: #c0392b;
-            font-weight: bold;
+        /* Hover overlay preserves base shading */
+        tr:hover td {
+            box-shadow: inset 0 0 0 9999px var(--row-hover-overlay);
+            transition: box-shadow 0.1s ease;
         }
 
-        .meta {
-            font-size: 0.85em;
-            color: #999;
+        /* Thermal/phase left-bar shadows (use tokens) */
+        tr.group.cold td.name-cell, tr.cold:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-cold); }
+        tr.group.hot td.name-cell, tr.hot:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-hot); }
+        tr.group.phase-normal td.name-cell, tr.phase-normal:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-neutral); }
+
+        /* Fail row tint removed */
+        .failed { background-color: transparent; }
+        .failed .value-cell { color: var(--fail-text); font-weight: 700; }
+
+        /* ============================================================
+           Timestamp consistency (ALL rows, ALL inner spans)
+           ============================================================ */
+        td:nth-child(5),
+        td:nth-child(5) *,
+        .timestamp-cell,
+        .timestamp-cell * {
+            font-size: 14px !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            color: var(--text-faint) !important;
+            font-weight: 400 !important;
+        }
+
+        /* If `.meta` is used anywhere (header, etc.), keep it consistent */
+        .meta, .meta * {
+            font-size: 14px !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            color: var(--text-faint) !important;
+            font-weight: 400 !important;
         }
 
         .name-cell {
@@ -697,82 +818,69 @@ $htmlContent = @"
 
         .name-cell .caret {
             display: inline-block;
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             margin-right: 10px;
-            border: solid #555;
+            border: solid var(--caret);
             border-width: 0 2px 2px 0;
             transform: rotate(-45deg);
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, border-color 0.2s;
         }
+
+        .name-cell:hover .caret { border-color: var(--caret-hover); }
 
         .name-cell .dot {
             display: inline-block;
-            width: 8px;
-            height: 8px;
-            margin: 0 8px 1px 2px;
+            width: 6px;
+            height: 6px;
+            margin: 0 8px 2px 2px;
             border-radius: 50%;
-            background: #bbb;
+            background: var(--neutral-700);
             vertical-align: middle;
         }
+
+        .dot.status-passed { background: var(--pass-text); }
+        .dot.status-failed { background: var(--fail-text); }
+        .dot.status-inprogress, .dot.status-interrupted { background: #d99000; }
+        .dot.status-notrun { background: var(--neutral-600); }
+
+        .failed .dot.status-failed { box-shadow: 0 0 4px var(--fail-text); }
+
         .group[data-expanded="true"] .caret,
-        #global-toggle.expanded {
-            transform: rotate(45deg);
-        }
-        
+        #global-toggle.expanded { transform: rotate(45deg); }
+
         #global-toggle {
             display: inline-block;
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             margin-right: 6px;
-            border: solid #333;
+            border: solid var(--caret);
             border-width: 0 2px 2px 0;
             transform: rotate(-45deg);
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, border-color 0.2s;
             cursor: pointer;
             vertical-align: middle;
         }
-        
-        tr[hidden] {
-            display: none;
-        }
+        #global-toggle:hover { border-color: var(--caret-hover); }
 
-        /* Status colors */
-        .status-cell {
-            font-weight: bold;
-        }
+        tr[hidden] { display: none; }
 
-        .status-passed {
-            color: #27ae60;
+        /* Badge Styles */
+        .test-status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.625rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1rem;
         }
+        .test-status-badge.passed { background-color: var(--pass-bg); color: var(--pass-text); border: 1px solid var(--pass-border); }
+        .test-status-badge.failed { background-color: var(--fail-bg); color: var(--fail-text); border: 1px solid var(--fail-border); }
+        .test-status-badge.notrun, .test-status-badge.unknown { background-color: var(--badge-neutral-bg); color: var(--badge-neutral-text); border: 1px solid var(--badge-neutral-border); }
 
-        .status-failed {
-            color: #c0392b;
-        }
-
-        .status-inprogress, .status-interrupted {
-            color: #d99000;
-        }
-
-        .status-notrun {
-            color: #9aa0a6;
-        }
-
-        .dot.status-passed {
-            background: #27ae60;
-        }
-
-        .dot.status-failed {
-            background: #c0392b;
-        }
-
-        .dot.status-inprogress, .dot.status-interrupted {
-            background: #d99000;
-        }
-
-        .dot.status-notrun {
-            background: #bbb;
-        }
+        /* Value/Limits */
+        .value-cell, td:nth-child(3), td:nth-child(4) { color: var(--col-muted); }
     </style>
 </head>
 <body>
@@ -791,12 +899,14 @@ $htmlContent = @"
         </div>
         <div class="summary-item">
             <span class="summary-label">Result</span>
-            <span class="summary-value $(if($overallResult -eq 'Passed') { 'pass-badge' } else { 'fail-badge' })">$overallResult</span>
+            <span class="summary-value">
+                <span class="test-status-badge $(if($overallResult -eq 'Passed') { 'passed' } else { 'failed' })">$overallResult</span>
+            </span>
         </div>
          <div class="summary-item">
             <span class="summary-label">Stats</span>
             <span class="summary-value">
-                <span class="pass-badge">$passCount Pass</span> / <span class="fail-badge">$failCount Fail</span>
+                <span class="pass-count" style="color:var(--pass-text)">$passCount Pass</span> / <span class="fail-count" style="color:var(--fail-text)">$failCount Fail</span>
                 <span class="stats-detail">
                     ($totalTests Total)
                 </span>
@@ -827,18 +937,14 @@ $htmlContent = @"
             const children = new Map();
             const globalToggle = document.getElementById('global-toggle');
 
-            // Lock table column widths based on the widest content in each column.
-            // This prevents columns shifting when rows are expanded/collapsed.
             const lockColumnWidths = () => {
                 const table = tbody.closest('table');
                 const theadRow = table.querySelector('thead tr');
                 const headerCells = Array.from(theadRow.cells);
 
-                // Hide the table while we measure to avoid visual flicker.
                 const prevVis = table.style.visibility;
                 table.style.visibility = 'hidden';
 
-                // Temporarily disable truncation so scrollWidth reflects full content width.
                 const prevLayout = table.style.tableLayout;
                 table.style.tableLayout = 'auto';
                 const touched = [];
@@ -851,17 +957,14 @@ $htmlContent = @"
                     });
                 });
 
-                // Temporarily unhide rows so their content participates in measurement.
                 const prevHidden = rows.map(r => r.hidden);
                 rows.forEach(r => r.hidden = false);
 
                 const colCount = headerCells.length;
                 const max = new Array(colCount).fill(0);
 
-                // Include headers in the measurement.
                 headerCells.forEach((cell, i) => { max[i] = Math.max(max[i], cell.scrollWidth); });
 
-                // Measure all body cells using scrollWidth (required width of content).
                 rows.forEach(r => {
                     for (let i = 0; i < colCount; i++) {
                         const cell = r.cells[i];
@@ -870,10 +973,8 @@ $htmlContent = @"
                     }
                 });
 
-                // Restore original hidden states.
                 rows.forEach((r, i) => r.hidden = prevHidden[i]);
 
-                // Build/replace colgroup with fixed pixel widths (+ a little padding buffer).
                 const pad = 24;
                 const old = table.querySelector('colgroup');
                 if (old) old.remove();
@@ -886,7 +987,6 @@ $htmlContent = @"
                 });
                 table.insertBefore(colgroup, table.firstChild);
 
-                // Restore styles we temporarily changed.
                 touched.forEach(([c, ws, ov, to]) => {
                     c.style.whiteSpace = ws;
                     c.style.overflow = ov;
@@ -899,8 +999,6 @@ $htmlContent = @"
 
             lockColumnWidths();
 
-            // Build parent -> child map and hide all non-root rows by default.
-            // This ensures the table loads in a clean "summary" style view.
             rows.forEach(row => {
                 const parent = row.dataset.parent;
                 if (parent) {
@@ -914,7 +1012,6 @@ $htmlContent = @"
                 }
             });
 
-            // Propagate hot/cold theme from group rows to all descendants.
             const applyTheme = (row, themeClass) => {
                 const kids = children.get(row.dataset.id) || [];
                 kids.forEach(kid => {
@@ -932,7 +1029,6 @@ $htmlContent = @"
                 else if (row.classList.contains('phase-normal')) applyTheme(row, 'phase-normal');
             });
 
-            // Collapse group row and all subsequent descendents
             const collapse = (row) => {
                 row.classList.add('collapsed');
                 row.dataset.expanded = 'false';
@@ -940,12 +1036,11 @@ $htmlContent = @"
                 kids.forEach(kid => {
                     kid.hidden = true;
                     if (kid.classList.contains('group')) {
-                        collapse(kid); // recursive collapse keeps descendants hidden
+                        collapse(kid);
                     }
                 });
             };
 
-            // Expand group row but keep children collapsed
             const expand = (row) => {
                 row.classList.remove('collapsed');
                 row.dataset.expanded = 'true';
@@ -953,12 +1048,11 @@ $htmlContent = @"
                 kids.forEach(kid => {
                     kid.hidden = false;
                     if (kid.classList.contains('group')) {
-                        kid.classList.add('collapsed'); // show the group row but keep its children collapsed
+                        kid.classList.add('collapsed');
                     }
                 });
             };
 
-            // Start with all groups collapsed (roots visible, their children hidden)
             rows.filter(r => r.classList.contains('group')).forEach(collapse);
 
             globalToggle.addEventListener('click', () => {
@@ -984,16 +1078,12 @@ $htmlContent = @"
                 }
             });
 
-            // Delegate event listener to the table body.
-            // This prevents the inevitable performance impact
-            // of adding a listener to each row in large reports.
             tbody.addEventListener('click', (event) => {
                 const nameCell = event.target.closest('.name-cell');
                 if (!nameCell) { return; }
                 const row = nameCell.parentElement;
                 if (!row.classList.contains('group')) { return; }
-                
-                // Allow interactions only if row is expandable
+
                 if (row.dataset.expandable === "0") { return; }
 
                 const isCollapsed = row.classList.contains('collapsed');
@@ -1004,6 +1094,7 @@ $htmlContent = @"
 </body>
 </html>
 "@
+
 
 $outDir = Split-Path -Parent $OutputHtmlPath
 if ($outDir -and -not (Test-Path -LiteralPath $outDir)) {
