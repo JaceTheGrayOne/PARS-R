@@ -1,0 +1,333 @@
+        :root {
+            /* Base */
+            --neutral-950: rgba(10,10,10,1);
+            --neutral-900: rgba(23,23,23,1);
+            --neutral-800: rgba(38,38,38,1);
+            --neutral-700: rgba(64,64,64,1);
+            --neutral-600: rgba(82,82,82,1);
+            --neutral-500: rgba(115,115,115,1);
+            --neutral-300: rgba(212,212,216,1);
+            --neutral-200: rgba(229,229,229,1);
+            --neutral-100: rgba(245,245,245,1);
+
+            --zinc-200: rgba(228,228,231,1);
+            --zinc-300: rgba(212,212,216,1);
+            --zinc-400: rgba(161,161,170,1);
+            --zinc-500: rgba(113,113,122,1);
+            --zinc-600: rgba(82,82,91,1);
+
+            /* Page */
+            --bg-page: var(--neutral-950);
+            --bg-card: var(--neutral-900);
+            --bg-table: var(--neutral-900);
+            --bg-header: var(--neutral-800);
+            --bg-header-grad-end: var(--neutral-900);
+
+            --border-strong: var(--neutral-800);
+            --border: var(--neutral-700);
+            --border-muted: rgba(63,63,70,0.55); /* ~zinc-700/55-ish */
+
+            /* Text */
+            --text-strong: var(--neutral-100);
+            --text: var(--neutral-200);
+            --text-subtle: var(--neutral-300);
+            --text-muted: var(--neutral-500);
+            --text-faint: var(--zinc-500);
+
+            /* Columns */
+            --col-muted: var(--zinc-400);
+            --caret: var(--zinc-400);
+            --caret-hover: var(--zinc-200);
+
+            /* Row Backgrounds */
+            --row-bg-group-top: rgba(38,38,38,0.70);  /* Group Header */
+            --row-bg-group: rgba(63,63,70,0.36);    /* Nested Groups */
+            --row-bg-leaf: rgba(63,63,70,0.18);            /* Test Rows */
+            --row-bg-leaf-alt: rgba(63,63,70,0.23);      /* Test Rows 2 */
+
+            /* Hover */
+            --row-hover-overlay: rgba(255,255,255,0.055);
+
+            /* Status Badges */
+            --pass-bg: rgba(16,185,129,0.2);
+            --pass-text: rgba(52,211,153,1);
+            --pass-border: rgba(16,185,129,0.3);
+
+            --fail-bg: rgba(244,63,94,0.2);
+            --fail-text: rgba(251,113,133,1);
+            --fail-border: rgba(244,63,94,0.3);
+
+            --badge-neutral-bg: rgba(39,39,42,0.5);
+            --badge-neutral-text: var(--text-muted);
+            --badge-neutral-border: var(--border);
+
+            /* Cycle Indicator Accents */
+            --accent-cold: rgba(162, 198, 245, 0.40);
+            --accent-hot: rgba(252, 198, 192, 0.40);
+            --accent-neutral: rgba(255, 255, 255, 0.12);
+        }
+
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text);
+            margin: 20px;
+            background-color: var(--bg-page);
+        }
+
+        .summary-box {
+            background: var(--bg-card);
+            padding: 15px;
+            border: 1px solid var(--border-strong);
+            margin-bottom: 20px;
+            border-radius: 12px;
+            display: flex;
+            gap: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+            background-image: linear-gradient(to bottom, var(--bg-header), var(--bg-header-grad-end) 40%);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .summary-item { display: flex; flex-direction: column; }
+
+        .summary-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        .summary-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .stats-detail {
+            font-size: 0.75rem;
+            font-weight: normal;
+            margin-left: 8px;
+            white-space: nowrap;
+            color: var(--text-muted);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--bg-table);
+            border: 1px solid var(--border-strong);
+            border-radius: 12px;
+            table-layout: auto;
+            overflow: hidden;
+        }
+
+        th {
+            background-color: var(--bg-header);
+            color: var(--text);
+            text-align: left;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-subtle);
+            background-color: var(--row-bg-leaf);
+        }
+
+        /* ============================================================
+           Row Shading
+           ============================================================ */
+
+        /* Test Rows */
+        tr:not(.group) td {
+            background-color: var(--row-bg-leaf);
+            color: var(--neutral-300);
+            font-weight: 400;
+        }
+
+        /* Test Rows 2 */
+        tbody tr:not(.group):nth-of-type(even) td {
+            background-color: var(--row-bg-leaf-alt);
+        }
+
+        /* Nested Groups */
+        tr.group td {
+            background-color: var(--row-bg-group);
+            color: var(--neutral-200);
+            font-weight: 500;
+        }
+
+        /* Group Header */
+        tr.group[data-level="0"] td {
+            background-color: var(--row-bg-group-top);
+            color: var(--neutral-100);
+            font-weight: 600;
+        }
+
+        /* Hover */
+        tr:hover td {
+            box-shadow: inset 0 0 0 9999px var(--row-hover-overlay);
+            transition: box-shadow 0.1s ease;
+        }
+
+        /* Cycle Indicator Accents */
+        tr.group.cold td.name-cell, tr.cold:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-cold); }
+        tr.group.hot td.name-cell, tr.hot:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-hot); }
+        tr.group.phase-normal td.name-cell, tr.phase-normal:not(.group) td.name-cell { box-shadow: inset 4px 0 0 var(--accent-neutral); }
+
+        /* Removed */
+        .failed { background-color: transparent; }
+        .failed .value-cell { color: var(--fail-text); font-weight: 700; }
+
+        /* ============================================================
+           Timestamps
+           ============================================================ */
+        td:nth-child(5),
+        td:nth-child(5) *,
+        .timestamp-cell,
+        .timestamp-cell * {
+            font-size: 14px !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            color: var(--text-faint) !important;
+            font-weight: 400 !important;
+        }
+
+        .meta, .meta * {
+            font-size: 14px !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            color: var(--text-faint) !important;
+            font-weight: 400 !important;
+        }
+
+        .name-cell {
+            cursor: default;
+            user-select: none;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        .name-cell .caret {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 10px;
+            border: solid var(--caret);
+            border-width: 0 2px 2px 0;
+            transform: rotate(-45deg);
+            transition: transform 0.2s ease, border-color 0.2s;
+        }
+
+        .name-cell:hover .caret { border-color: var(--caret-hover); }
+
+        .name-cell .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            margin: 0 8px 2px 2px;
+            border-radius: 50%;
+            background: var(--neutral-700);
+            vertical-align: middle;
+        }
+
+        .dot.status-passed { background: var(--pass-text); }
+        .dot.status-failed { background: var(--fail-text); }
+        .dot.status-inprogress, .dot.status-interrupted { background: #d99000; }
+        .dot.status-notrun { background: var(--neutral-600); }
+
+        .failed .dot.status-failed { box-shadow: 0 0 4px var(--fail-text); }
+
+        .group[data-expanded="true"] .caret,
+        #global-toggle.expanded { transform: rotate(45deg); }
+
+        #global-toggle {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 6px;
+            border: solid var(--caret);
+            border-width: 0 2px 2px 0;
+            transform: rotate(-45deg);
+            transition: transform 0.2s ease, border-color 0.2s;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+        #global-toggle:hover { border-color: var(--caret-hover); }
+
+        tr[hidden] { display: none; }
+
+        /* Status Badges */
+        .test-status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.625rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1rem;
+        }
+        .test-status-badge.passed { background-color: var(--pass-bg); color: var(--pass-text); border: 1px solid var(--pass-border); }
+        .test-status-badge.failed { background-color: var(--fail-bg); color: var(--fail-text); border: 1px solid var(--fail-border); }
+        .test-status-badge.notrun, .test-status-badge.unknown { background-color: var(--badge-neutral-bg); color: var(--badge-neutral-text); border: 1px solid var(--badge-neutral-border); }
+
+        /* Values/Limits */
+        .value-cell, td:nth-child(3), td:nth-child(4) { color: var(--col-muted); }
+
+        /* Filter Row */
+        /* Filter Panel */
+        .filter-panel {
+            display: flex;
+            gap: 15px;
+            padding: 10px;
+            background-color: var(--bg-header);
+            border: 1px solid var(--border-strong);
+            border-bottom: none;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            align-items: center;
+        }
+        
+        /* Adjust table radius since filter panel sits on top */
+        table { border-top-left-radius: 0; border-top-right-radius: 0; }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-group.grow { flex: 1; }
+
+        .filter-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .filter-input {
+            width: 100%;
+            background-color: var(--bg-table);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 13px;
+            box-sizing: border-box;
+            min-width: 140px;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--neutral-500);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+        }
