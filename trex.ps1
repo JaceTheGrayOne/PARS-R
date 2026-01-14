@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    🦖 T-REX "TestStand Report Extractor" - TestStand XML to HTML Parser
+    T-REX "TestStand Report Extractor" - TestStand XML to HTML Parser
 
 .DESCRIPTION
     Parses XML (ATML) output from TestStand into a self contained, human
@@ -42,17 +42,21 @@ param (
     [Parameter(Mandatory = $true)]
     [string]$OutputHtmlPath = "D:\Development\XML_Parser\Resources\Output.html",
 
-    # Folder containing template.html, styles.css, app.js
+    # Module Directory
+    # - template.html
+    # - styles.css
+    # - app.js
     [Parameter(Mandatory = $false)]
     [string]$AssetsDir
 )
 
-# Resolve assets directory default to "web" next to this script
+# Validate Module Directory
 if (-not $AssetsDir) {
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
     $AssetsDir = Join-Path $scriptDir "web"
 }
 
+# Module Paths
 $templatePath = Join-Path $AssetsDir "template.html"
 $cssPath      = Join-Path $AssetsDir "styles.css"
 $jsPath       = Join-Path $AssetsDir "app.js"
