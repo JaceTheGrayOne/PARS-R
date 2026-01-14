@@ -191,32 +191,31 @@
 
                 // Step 0: Clean State
                 rows.forEach(r => {
-                    delete r.dataset.hasVisibleChild; // runtime flag for structure
-                    delete r.dataset.isCandidate;     // runtime flag for direct match
+                    delete r.dataset.hasVisibleChild;
+                    delete r.dataset.isCandidate;
                 });
 
-                // Step 1: Determine Candidates (Pass 1)
+                // Step 1: Determine Candidates
                 rows.forEach(r => {
                     const isGroup = r.classList.contains('group');
                     const hasParityName = r.hasAttribute('data-parity-name');
                     
-                    // Definition: "Test Row" is a non-group row with parity data.
+                    // "Test Row" is a non-group row with parity data.
                     const isTestRow = !isGroup && hasParityName;
                     
                     let isCandidate = false;
 
                     if (isTestRow) {
-                        // Test Rows: Must match ALL active filters + Search
+                        // Test Rows must match all active filters + Search
                         const matchStep = !fStep || r.getAttribute('data-parity-name') === fStep;
                         const matchStatus = !fStatus || r.getAttribute('data-parity-status') === fStatus;
                         const matchSearch = !isSearchActive || r.textContent.toLowerCase().includes(fSearch);
                         
                         isCandidate = matchStep && matchStatus && matchSearch;
                     } else {
-                        // Generic Rows (Groups, Info): Match ONLY if Search is Active & Matches.
+                        // Generic Rows (Groups, Info) match only if search is active & matches.
                         // Filters (Step/Status) do not apply to them directly.
                         if (isSearchActive) {
-                            // If search is active, do we match text?
                             if (r.textContent.toLowerCase().includes(fSearch)) {
                                 isCandidate = true;
                             }
@@ -240,15 +239,13 @@
                     }
                 });
 
-                // Step 2: Render & Structure (Pass 2)
+                // Step 2: Render / Structure
                 if (!isActive) {
                     // Reset to Default State: All rows physically present, Groups collapsed.
-                    // This implies: Roots visible, Children hidden by collapse logic.
-                    
-                    // First, ensure all rows are "unhidden" in the DOM sense
+                    // Ensure all rows are "unhidden" in the DOM
                     rows.forEach(r => {
                         if (r.dataset.parent) {
-                            r.hidden = true; // Default tree state: only roots visible
+                            r.hidden = true;
                         } else {
                             r.hidden = false;
                         }
@@ -258,7 +255,6 @@
                         }
                     });
                 } else {
-                    // Active Mode: Sparse Tree
                     rows.forEach(r => {
                         const isCand = r.dataset.isCandidate === 'true';
                         const hasVisChild = r.dataset.hasVisibleChild === 'true';
@@ -266,16 +262,14 @@
                         if (isCand || hasVisChild) {
                             r.hidden = false;
                             
-                            // If it's a group and acts as a structural parent, EXPAND it.
+                            // If it's a group and acts as a structural parent, expand it.
                             if (r.classList.contains('group')) {
-                                // If it has visible children, it MUST be expanded.
+                                // If it has visible children, it must be expanded.
                                 if (hasVisChild) {
                                     r.classList.remove('collapsed');
                                     r.dataset.expanded = 'true';
                                 } else {
-                                    // If it's just a candidate itself (matched search) but has no visible kids,
-                                    // we can choose to expand or collapse. 
-                                    // Collapsed is safer to avoid showing un-matched children.
+                                    // If it's just a candidate itself (matched search) but has no visible kids, collapse it.
                                     r.classList.add('collapsed');
                                     r.dataset.expanded = 'false';
                                 }
@@ -287,7 +281,7 @@
                 }
             };
 
-            // Helper: ID Map for fast parent lookup
+            // ID Map for fast parent lookup
             const rowMap = new Map();
             rows.forEach(r => rowMap.set(r.dataset.id, r));
 
