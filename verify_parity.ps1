@@ -4,7 +4,7 @@
 # Optional:
 #   -OutDir .\out
 #   -HtmlPath .\out\report.html
-#   -XmlCanonicalPath .\out\canonical_xml.json   (if you already have one)
+#   -XmlCanonicalPath .\out\canonical_xml.json
 #   -OutDiffPath .\out\parity_diff.json
 
 [CmdletBinding()]
@@ -31,12 +31,12 @@ function Resolve-RelPath([string]$p) {
     return (Resolve-Path -LiteralPath $p).Path
 }
 
-# Resolve defaults that depend on OutDir
+# Validate outdir dependent defaults
 if (-not $HtmlPath) { $HtmlPath = Join-Path $OutDir "report.html" }
 if (-not $HtmlCanonicalPath) { $HtmlCanonicalPath = Join-Path $OutDir "canonical_html.json" }
 if (-not $OutDiffPath) { $OutDiffPath = Join-Path $OutDir "parity_diff.json" }
 
-# Ensure output directory exists
+# Validate output directory
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
 $repoRoot = (Get-Location).Path
@@ -58,7 +58,6 @@ pwsh $trexPath -XmlPath $XmlPath -OutputHtmlPath $HtmlPath
 Write-Host "2) Extracting canonical HTML JSON..." -ForegroundColor Cyan
 pwsh $extractHtmlPath -HtmlPath $HtmlPath -OutPath $HtmlCanonicalPath
 
-# If caller didn't provide canonical XML, try to find a reasonable default.
 if (-not $XmlCanonicalPath) {
     $candidate1 = Join-Path $OutDir "canonical_xml.json"
     $candidate2 = Join-Path $OutDir "canonical_xml_v2.json"
