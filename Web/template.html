@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Report - __TITLE_SERIAL__</title>
+<style>
+__INLINE_CSS__    </style>
+</head>
+<body>
+    <div class="summary-box">
+        <div class="summary-item">
+            <span class="summary-label">Serial Number</span>
+            <span class="summary-value">__SERIAL_NUMBER__</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Part Number</span>
+            <span class="summary-value">__PART_NUMBER__</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Start Time</span>
+            <span class="summary-value">__START_TIME__</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Result</span>
+            <span class="summary-value">
+                <span class="test-status-badge __OVERALL_BADGE_CLASS__">__OVERALL_RESULT__</span>
+            </span>
+        </div>
+         <div class="summary-item">
+            <span class="summary-label">Stats</span>
+            <span class="summary-value">
+                <span class="pass-count" style="color:var(--pass-text)">__PASS_COUNT__ Pass</span> / <span class="fail-count" style="color:var(--fail-text)">__FAIL_COUNT__ Fail</span>
+                <span class="stats-detail">
+                    (__TOTAL_TESTS__ Total)
+                </span>
+            </span>
+        </div>
+    </div>
+    <div class="filter-panel">
+        <div class="filter-group">
+            <span class="filter-label">Step</span>
+            <select id="filter-step" class="filter-input">
+                <option value="">All Steps</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Status</span>
+            <select id="filter-status" class="filter-input">
+                <option value="">All</option>
+                <option value="Passed">Passed</option>
+                <option value="Failed">Failed</option>
+            </select>
+        </div>
+        <div class="filter-group grow">
+             <span class="filter-label">Search</span>
+            <input type="text" id="filter-search" class="filter-input" placeholder="Search values, limits, timestamps...">
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th><span id="global-toggle" class="caret" title="Toggle All"></span> Step Name</th>
+                <th>Status</th>
+                <th>Value</th>
+                <th>Limits</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+
+        <tbody>
+__HTML_ROWS__        </tbody>
+
+    </table>
+
+    <script>
+__INLINE_JS__    </script>
+</body>
+</html>
